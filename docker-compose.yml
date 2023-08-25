@@ -1,0 +1,12 @@
+version: '3'
+services:
+  nodejs-server:
+    build: .
+    ports:
+      - "3000:3000"
+  nginx:
+    image: nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
