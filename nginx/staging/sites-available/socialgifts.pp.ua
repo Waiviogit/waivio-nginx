@@ -102,6 +102,14 @@ server {
                 #proxy_redirect off;
         }
 
+        listen [::]:443 ssl;
+        listen 443 ssl;
+
+        ssl_certificate /etc/nginx/cert/social.crt;
+        ssl_certificate_key /etc/nginx/cert/social.key;
+        ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers "HIGH:!RC4:!aNULL:!MD5:!kEDH";
+
 }
 
 server {

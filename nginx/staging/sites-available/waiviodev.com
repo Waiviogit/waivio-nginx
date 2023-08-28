@@ -125,6 +125,13 @@ server {
                proxy_pass http://localnode:8076;
                #proxy_redirect off;
       }
+
+      listen 443 ssl; # managed by Certbot
+      ssl_certificate /etc/letsencrypt/live/waiviodev.com-0001/fullchain.pem; # managed by Certbot
+      ssl_certificate_key /etc/letsencrypt/live/waiviodev.com-0001/privkey.pem; # managed by Certbot
+      include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+      ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
 }
 
 server {

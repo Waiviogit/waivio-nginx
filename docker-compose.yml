@@ -10,6 +10,19 @@ services:
       - 8080:${NGINX_PORT1}
       - 8443:${NGINX_PORT2}
       - ${NODE_PORT}:${NODE_PORT}
+    volumes:
+      - ./nginx/staging/newconfig:/etc/nginx/nginx.conf
+      - ./nginx/staging/certs:/etc/nginx/certs
+      - /etc/letsencrypt:/etc/letsencrypt
+      - ./nginx/staging/logs:/etc/nginx/logs
+      - ./nginx/staging/sites-available:/etc/nginx/sites-available
     extra_hosts:
      - ${EXTERNAL_HOST}:${EXTERNAL_IP}
+    restart: always
+    logging:
+      driver: 'json-file'
+      options:
+        max-file: '5'
+        max-size: '10m'
+
 
