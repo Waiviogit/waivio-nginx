@@ -34,19 +34,48 @@ const reloadNginx = async () => {
   }
 };
 
+//todo chage email
+const generateCertificate = async ({ host }) => {
+  try {
+    const result = await exec(`certbot --nginx --non-interactive --agree-tos --email sifob96035@wlmycn.com -d ${host}`);
+    return { result };
+  } catch (error) {
+    return { error };
+  }
+};
+
 const addSiteConfiguration = async ({
-  host,
+  host, generateCert = false,
 }) => {
-  const template = siteTemplate(host);
+  const template = siteTemplate({ hostName: host });
   const pathToFile = path.join(SITE_AVAILABLE_PATH, host);
   const { result, error } = await saveFile({ pathToFile, file: template });
-  if (error) return { error };
+  if (error) {
+    console.log('saveFile error');
+    return { error };
+  }
+  console.log('saveFile result', result);
   const { result: symLink, error: symLinkErr } = await createSymlink({
-    pathToFile, pathToSymlink: path.join(SITE_ENABLED_PATH, host),
+    pathToFile, pathToSymlink: path.join(SITE_ENABLED_PATH, '/'),
   });
-  if (symLinkErr) return { error: symLinkErr };
+  if (symLinkErr) {
+    console.log('symLinkErr error');
+    return { error: symLinkErr };
+  }
+  console.log('symLink result', symLink);
+  if (generateCert) {
+    const { result: certResult, error: certError } = await generateCertificate({ host });
+    if (certError) {
+      console.log('certError error');
+      return { error: certError };
+    }
+    console.log('certResult result', certResult);
+  }
   const { result: reloadResult, error: reloadError } = await reloadNginx();
-  if (reloadError) return { error: reloadError };
+  if (reloadError) {
+    console.log('reloadError error');
+    return { error: reloadError };
+  }
   return { result: reloadResult };
 };
 

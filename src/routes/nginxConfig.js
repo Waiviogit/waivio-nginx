@@ -1,14 +1,10 @@
-const addSiteConfiguration = require('../operations/addSiteConfiguration');
+const { configController } = require('../controllers');
 
 async function routes(fastify, options) {
   fastify.route({
-    method: 'GET',
-    url: '/',
-    handler: async (request, reply) => {
-      const { result, error } = await addSiteConfiguration({ host: 'test.com' });
-      if (error) return reply.status(500).send({ error });
-      reply.send({ result });
-    },
+    method: 'POST',
+    url: '/add-site',
+    handler: configController.addSite,
   });
 }
 

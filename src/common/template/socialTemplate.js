@@ -1,4 +1,4 @@
-const template = ({hostName}) => `
+const template = ({ hostName }) => `
 server {
         server_name ${hostName};
         access_log /var/log/nginx/$host.log;
@@ -115,6 +115,6 @@ server {
         listen [::]:80;
         return 301 https://$host$request_uri;
 }
-`
+`;
 
 module.exports = template;
