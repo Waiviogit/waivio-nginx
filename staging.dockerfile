@@ -72,4 +72,6 @@ EXPOSE 80
 EXPOSE 443
 EXPOSE 10020
 
+RUN nginx
+
 CMD ["npm", "run", "start"]

@@ -27,7 +27,7 @@ const createSymlink = async ({ pathToFile, pathToSymlink }) => {
 
 const reloadNginx = async () => {
   try {
-    const result = await exec('systemctl reload nginx');
+    const result = await exec('nginx -s reload');
     return { result };
   } catch (error) {
     return { error };
