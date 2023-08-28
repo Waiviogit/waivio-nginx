@@ -7,8 +7,8 @@ services:
     env_file:
       - .staging.env
     ports:
-      - 8080:${NGINX_PORT1}
-      - 8443:${NGINX_PORT2}
+      - ${NGINX_PORT1}:${NGINX_PORT1}
+      - ${NGINX_PORT2}:${NGINX_PORT2}
       - ${NODE_PORT}:${NODE_PORT}
     volumes:
       - ./nginx/staging/newconfig:/etc/nginx/nginx.conf

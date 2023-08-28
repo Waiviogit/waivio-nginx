@@ -33,11 +33,6 @@ COPY package.json ./
 RUN npm install
 COPY . .
 
-# Expose ports
-#EXPOSE 80
-#EXPOSE 443
-#EXPOSE 10020
-
 # Configure supervisord
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 

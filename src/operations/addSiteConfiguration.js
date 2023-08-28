@@ -34,10 +34,9 @@ const reloadNginx = async () => {
   }
 };
 
-//todo chage email
 const generateCertificate = async ({ host }) => {
   try {
-    const result = await exec(`certbot --nginx --non-interactive --agree-tos --email sifob96035@wlmycn.com -d ${host}`);
+    const result = await exec(`certbot --nginx --non-interactive --agree-tos --email ${process.env.CERTBOT_EMAIL} -d ${host}`);
     return { result };
   } catch (error) {
     return { error };
