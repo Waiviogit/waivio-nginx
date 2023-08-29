@@ -13,7 +13,7 @@ services:
     volumes:
       - ./nginx/staging/newconfig:/etc/nginx/nginx.conf
       - ./nginx/staging/certs:/etc/nginx/certs
-      - ./certbot-certs:/etc/letsencrypt
+      - ./nginx/staging/certbot-certs:/etc/letsencrypt
       - ./nginx/staging/logs:/etc/nginx/logs
       - ./nginx/staging/sites-available:/etc/nginx/sites-available
     extra_hosts:
