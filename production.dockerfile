@@ -10,10 +10,10 @@ RUN pip3 install pip --upgrade
 RUN pip3 install certbot-nginx
 
 # Copy the main Nginx configuration
-COPY ./nginx/staging/nginx.conf /etc/nginx/nginx.conf
+COPY ./nginx/production/nginx.conf /etc/nginx/nginx.conf
 
 # Copy server configurations to sites-available
-COPY ./nginx/staging/sites-available/* /etc/nginx/sites-available/
+COPY ./nginx/production/sites-available/* /etc/nginx/sites-available/
 
 # Create directory for enabled sites
 RUN mkdir /etc/nginx/sites-enabled/

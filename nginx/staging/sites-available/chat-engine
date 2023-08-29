@@ -6,7 +6,7 @@ server {
         server_name 35.157.207.192;
 
         location /api {
-                proxy_pass http://localnode:10001;
+                proxy_pass http://127.0.0.1:10001;
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection 'upgrade';
@@ -19,7 +19,7 @@ server {
         }
 
         location /admin {
-                proxy_pass http://localnode:10001;
+                proxy_pass http://127.0.0.1:10001;
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection 'upgrade';
@@ -32,7 +32,7 @@ server {
         }
 
         location /socket.io {
-                proxy_pass http://localnode:10001;
+                proxy_pass http://127.0.0.1:10001;
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection 'upgrade';

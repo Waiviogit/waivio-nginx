@@ -9,7 +9,7 @@ server {
                 proxy_set_header Host $host;
                 proxy_set_header X-NginX-Proxy true;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://localnode:8040;
+                proxy_pass http://127.0.0.1:8040;
                 proxy_redirect off;
         }
 
@@ -35,7 +35,7 @@ server {
                 proxy_set_header Host2 $http_origin;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://localnode:8099;
+                proxy_pass http://127.0.0.1:8099;
         }
 
         location /auth {
@@ -45,7 +45,7 @@ server {
                 proxy_set_header Connection 'upgrade';
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://localnode:8004;
+                proxy_pass http://127.0.0.1:8004;
         }
 
         location /currencies-api {
@@ -55,7 +55,7 @@ server {
                 proxy_set_header Connection 'upgrade';
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://localnode:8001;
+                proxy_pass http://127.0.0.1:8001;
         }
 
         location /notifications-api {
@@ -65,7 +65,7 @@ server {
                 proxy_set_header X-Real-IP $remote_addr;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://localnode:8084;
+                proxy_pass http://127.0.0.1:8084;
         }
 
         location /objects-bot {
@@ -75,7 +75,7 @@ server {
                 proxy_set_header Connection 'upgrade';
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://localnode:8083;
+                proxy_pass http://127.0.0.1:8083;
         }
 
         location /campaigns-v2 {
@@ -86,7 +86,7 @@ server {
                 proxy_set_header Host2 $http_origin;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://localnode:8075;
+                proxy_pass http://127.0.0.1:8075;
                 #proxy_redirect off;
         }
 
@@ -98,7 +98,7 @@ server {
                 proxy_set_header Host2 $http_origin;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://localnode:8076;
+                proxy_pass http://127.0.0.1:8076;
                 #proxy_redirect off;
         }
         listen [::]:443 ssl;

@@ -6,18 +6,13 @@ services:
       dockerfile: staging.dockerfile
     env_file:
       - .staging.env
-    ports:
-      - ${NGINX_PORT1}:${NGINX_PORT1}
-      - ${NGINX_PORT2}:${NGINX_PORT2}
-      - ${NODE_PORT}:${NODE_PORT}
+    network_mode: host
     volumes:
-      - ./nginx/staging/newconfig:/etc/nginx/nginx.conf
+      - ./nginx/staging/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/staging/certs:/etc/nginx/certs
       - ./nginx/staging/certbot-certs:/etc/letsencrypt
       - ./nginx/staging/logs:/etc/nginx/logs
       - ./nginx/staging/sites-available:/etc/nginx/sites-available
-    extra_hosts:
-     - ${EXTERNAL_HOST}:${EXTERNAL_IP}
     restart: always
     logging:
       driver: 'json-file'
