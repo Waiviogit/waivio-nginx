@@ -5,6 +5,10 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Certs
+certs
+certbot-certs
+
 # Runtime data
 pids
 *.pid
