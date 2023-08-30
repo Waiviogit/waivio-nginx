@@ -1,47 +1,9 @@
-const siteTemplate = require('../common/template/socialTemplate');
-const fs = require('fs').promises;
 const path = require('path');
-const util = require('util');
-const exec = util.promisify(require('child_process').exec);
-
-const SITE_AVAILABLE_PATH = '/etc/nginx/sites-available';
-const SITE_ENABLED_PATH = '/etc/nginx/sites-enabled';
-
-const saveFile = async ({ pathToFile, file }) => {
-  try {
-    const result = await fs.writeFile(pathToFile, file);
-    return { result };
-  } catch (error) {
-    return { error };
-  }
-};
-
-const createSymlink = async ({ pathToFile, pathToSymlink }) => {
-  try {
-    const result = await exec(`ln -s ${pathToFile} ${pathToSymlink}`);
-    return { result };
-  } catch (error) {
-    return { error };
-  }
-};
-
-const reloadNginx = async () => {
-  try {
-    const result = await exec('nginx -s reload');
-    return { result };
-  } catch (error) {
-    return { error };
-  }
-};
-
-const generateCertificate = async ({ host }) => {
-  try {
-    const result = await exec(`certbot --nginx --non-interactive --agree-tos --email ${process.env.CERTBOT_EMAIL} -d ${host}`);
-    return { result };
-  } catch (error) {
-    return { error };
-  }
-};
+const siteTemplate = require('../common/template/socialTemplate');
+const { SITE_AVAILABLE_PATH, SITE_ENABLED_PATH } = require('../common/constants/path');
+const {
+  saveFile, createSymlink, generateCertificate, reloadNginx,
+} = require('../common/helpers/nginxHelpers');
 
 const addSiteConfiguration = async ({
   host, generateCert = false,
