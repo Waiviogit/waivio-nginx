@@ -1,5 +1,6 @@
 const fastify = require('fastify')({ logger: true });
 const nginxRoutes = require('./routes/nginxConfig');
+require('./jobs');
 
 fastify.register(nginxRoutes);
 

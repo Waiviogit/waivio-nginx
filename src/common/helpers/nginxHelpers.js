@@ -31,6 +31,15 @@ const reloadNginx = async () => {
   }
 };
 
+const renewCertificates = async () => {
+  try {
+    const result = await exec('certbot renew');
+    return { result };
+  } catch (error) {
+    return { error };
+  }
+};
+
 const generateCertificate = async ({ host }) => {
   try {
     const result = await exec(`certbot --nginx --non-interactive --agree-tos --email ${process.env.CERTBOT_EMAIL} -d ${host}`);
@@ -56,4 +65,5 @@ module.exports = {
   reloadNginx,
   generateCertificate,
   removeConfiguration,
+  renewCertificates,
 };

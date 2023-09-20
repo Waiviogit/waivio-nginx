@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cron": "^2.4.3",
     "fastify": "^4.21.0",
     "joi": "^17.10.0"
   },
