@@ -6,10 +6,7 @@ services:
       dockerfile: production.dockerfile
     env_file:
       - .production.env
-    ports:
-      - ${NGINX_PORT1}:${NGINX_PORT1}
-      - ${NGINX_PORT2}:${NGINX_PORT2}
-      - ${NODE_PORT}:${NODE_PORT}
+    network_mode: host
     volumes:
       - ./nginx/production/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/production/certbot-certs:/etc/letsencrypt
