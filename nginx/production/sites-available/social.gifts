@@ -3,6 +3,7 @@ server {
 	server_name *.social.gifts;
 	listen 80;
 	listen [::]:80;
+	access_log /var/log/nginx/$host.log;
 
 	location / {
 
