@@ -1,6 +1,5 @@
 server {
         server_name dinings.pp.ua *.dinings.pp.ua;
-        access_log /var/log/nginx/$host.log;
 
         location / {
                 proxy_http_version 1.1;

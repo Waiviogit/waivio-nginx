@@ -1,7 +1,6 @@
 const template = ({ hostName }) => `
 server {
         server_name ${hostName};
-        access_log /var/log/nginx/$host.log;
 
         location / {
                 proxy_http_version 1.1;
