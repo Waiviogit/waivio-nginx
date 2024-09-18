@@ -3,7 +3,7 @@ server {
         server_name waiviodev.com www.waiviodev.com;
 
         location /api {
-                proxy_pass http://127.0.0.1:10000;
+                proxy_pass http://waivio_api;
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection 'upgrade';
@@ -23,7 +23,7 @@ server {
                 proxy_set_header Connection 'upgrade';
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8040;
+                proxy_pass http://waivio_frontend;
         }
 
 
@@ -34,7 +34,7 @@ server {
                 proxy_set_header X-Real-IP $remote_addr;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8084;
+                proxy_pass http://waivio_notifications;
         }
 
         location /telegram-api {
@@ -43,7 +43,7 @@ server {
                 proxy_set_header Connection 'upgrade';
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:4000;
+                proxy_pass http://waivio_telegram;
        }
 
        location /currencies-api {
@@ -53,17 +53,7 @@ server {
                 proxy_set_header Connection 'upgrade';
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8001;
-      }
-
-      location /waivio-parser {
-               proxy_http_version 1.1;
-               proxy_set_header X-Real-IP $remote_addr;
-               proxy_set_header Upgrade $http_upgrade;
-               proxy_set_header Connection 'upgrade';
-               proxy_set_header Host $host;
-               proxy_cache_bypass $http_upgrade;
-               proxy_pass http://127.0.0.1:8082;
+                proxy_pass http://waivio_currencies;
       }
 
       location /objects-bot {
@@ -73,7 +63,7 @@ server {
               proxy_set_header Connection 'upgrade';
               proxy_set_header Host $host;
               proxy_cache_bypass $http_upgrade;
-              proxy_pass http://127.0.0.1:8083;
+              proxy_pass http://waivio_objects_bot;
       }
 
       location /campaigns-api {
@@ -87,7 +77,7 @@ server {
               proxy_set_header Host2 $http_origin;
               proxy_set_header Host $host;
               proxy_cache_bypass $http_upgrade;
-              proxy_pass http://127.0.0.1:8099;
+              proxy_pass http://waivio_campaigns;
               #proxy_redirect off;
       }
 
@@ -98,7 +88,7 @@ server {
               proxy_set_header Connection 'upgrade';
               proxy_set_header Host $host;
               proxy_cache_bypass $http_upgrade;
-              proxy_pass http://127.0.0.1:8004;
+              proxy_pass http://waivio_auth;
               #proxy_redirect off;
       }
 
@@ -110,7 +100,7 @@ server {
                proxy_set_header Host2 $http_origin;
                proxy_set_header Host $host;
                proxy_cache_bypass $http_upgrade;
-               proxy_pass http://127.0.0.1:8075;
+               proxy_pass http://waivio_campaigns_2;
                #proxy_redirect off;
       }
 
@@ -122,7 +112,7 @@ server {
                proxy_set_header Host2 $http_origin;
                proxy_set_header Host $host;
                proxy_cache_bypass $http_upgrade;
-               proxy_pass http://127.0.0.1:8076;
+               proxy_pass http://waivio_arbitrage;
                #proxy_redirect off;
       }
 
@@ -134,7 +124,7 @@ server {
                      proxy_set_header Host2 $http_origin;
                      proxy_set_header Host $host;
                      proxy_cache_bypass $http_upgrade;
-                     proxy_pass http://127.0.0.1:11090;
+                     proxy_pass http://waivio_nginx;
                      #proxy_redirect off;
        }
 
@@ -146,7 +136,7 @@ server {
            		proxy_set_header Connection 'upgrade';
            		proxy_set_header Host $host;
            		proxy_cache_bypass $http_upgrade;
-           		proxy_pass http://127.0.0.1:11001;
+           		proxy_pass http://waivio_seo_service;
        }
 
       listen 443 ssl; # managed by Certbot

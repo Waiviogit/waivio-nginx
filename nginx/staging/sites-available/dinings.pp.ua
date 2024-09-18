@@ -8,12 +8,12 @@ server {
                 proxy_set_header Host $host;
                 proxy_set_header X-NginX-Proxy true;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8040;
+                proxy_pass http://waivio_frontend;
                 proxy_redirect off;
         }
 
         location /api {
-                proxy_pass http://127.0.0.1:10000;
+                proxy_pass http://waivio_api;
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection 'upgrade';
@@ -34,7 +34,7 @@ server {
                 proxy_set_header Host2 $http_origin;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8099;
+                proxy_pass http://waivio_campaigns;
         }
 
         location /auth {
@@ -44,7 +44,7 @@ server {
                 proxy_set_header Connection 'upgrade';
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8004;
+                proxy_pass http://waivio_auth;
         }
 
         location /currencies-api {
@@ -54,7 +54,7 @@ server {
                 proxy_set_header Connection 'upgrade';
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8001;
+                proxy_pass http://waivio_currencies;
         }
 
         location /notifications-api {
@@ -64,7 +64,7 @@ server {
                 proxy_set_header X-Real-IP $remote_addr;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8084;
+                proxy_pass http://waivio_notifications;
         }
 
         location /objects-bot {
@@ -74,7 +74,7 @@ server {
                 proxy_set_header Connection 'upgrade';
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8083;
+                proxy_pass http://waivio_objects_bot;
         }
 
         location /campaigns-v2 {
@@ -85,7 +85,7 @@ server {
                 proxy_set_header Host2 $http_origin;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8075;
+                proxy_pass http://waivio_campaigns_2;
                 #proxy_redirect off;
         }
 
@@ -97,7 +97,7 @@ server {
                 proxy_set_header Host2 $http_origin;
                 proxy_set_header Host $host;
                 proxy_cache_bypass $http_upgrade;
-                proxy_pass http://127.0.0.1:8076;
+                proxy_pass http://waivio_arbitrage;
                 #proxy_redirect off;
         }
         listen [::]:443 ssl;
