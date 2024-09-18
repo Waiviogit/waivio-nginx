@@ -139,6 +139,17 @@ server {
            		proxy_pass http://waivio_seo_service;
        }
 
+       location /assistant {
+
+           		proxy_http_version 1.1;
+           		proxy_set_header X-Real-IP $remote_addr;
+           		proxy_set_header Upgrade $http_upgrade;
+           		proxy_set_header Connection 'upgrade';
+           		proxy_set_header Host $host;
+           		proxy_cache_bypass $http_upgrade;
+           		proxy_pass http://waivio_assistant;
+       }
+
       listen 443 ssl; # managed by Certbot
       ssl_certificate /etc/letsencrypt/live/waiviodev.com-0001/fullchain.pem; # managed by Certbot
       ssl_certificate_key /etc/letsencrypt/live/waiviodev.com-0001/privkey.pem; # managed by Certbot
