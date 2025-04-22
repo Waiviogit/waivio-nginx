@@ -18,3 +18,28 @@ NODE_PORT=4444
 EXTERNAL_HOST=example
 EXTERNAL_IP=0.0.0.0
 CERTBOT_EMAIL=example@mail.com
+
+
+## ENABLE LOG ROTATION 
+
+```sudo nano /etc/logrotate.d/nginx-proxy```
+
+paste
+
+```
+/home/path/to/logs/*.log  {
+    daily
+    missingok
+    rotate 7
+    maxage 7
+    compress
+    delaycompress
+    notifempty
+    sharedscripts
+    copytruncate
+}
+```
+
+test
+
+```sudo logrotate -f /etc/logrotate.d/nginx-proxy```
