@@ -89,7 +89,7 @@ server {
 
 	location /import-objects-service {
 
-		client_max_body_size 50M;
+		client_max_body_size 100M;
 		proxy_http_version 1.1;
 		proxy_set_header X-Real-IP $remote_addr;
 		proxy_set_header Upgrade $http_upgrade;
@@ -97,6 +97,10 @@ server {
 		proxy_set_header Host $host;
 		proxy_cache_bypass $http_upgrade;
 		proxy_pass http://waivio_object_import;
+
+		proxy_read_timeout 120s;
+        proxy_connect_timeout 120s;
+        proxy_send_timeout 120s;
 	}
 
 	location /campaigns-v2 {
