@@ -10,6 +10,8 @@ server {
 	#ssl_certificate_key /etc/letsencrypt/live/dining.gifts/privkey.pem;
 	#include /etc/letsencrypt/options-ssl-nginx.conf;
 
+	if ($block_bot)       { return 403; }
+
 	location / {
 
 		proxy_http_version 1.1;

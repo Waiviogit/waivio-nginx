@@ -1,6 +1,8 @@
 const template = ({ hostName }) => `
 server {
         server_name ${hostName};
+        
+        if ($block_bot)       { return 403; }
 
         location / {
                 proxy_http_version 1.1;

@@ -11,6 +11,7 @@ server {
 	ssl_certificate_key /etc/letsencrypt/live/waivio.com/privkey.pem;
 	include /etc/letsencrypt/options-ssl-nginx.conf;
 
+    if ($block_bot)       { return 403; }
 
 	location /api {
 		proxy_http_version 1.1;

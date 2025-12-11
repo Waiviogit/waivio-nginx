@@ -16,6 +16,8 @@ COPY ./nginx/production/nginx.conf /etc/nginx/nginx.conf
 # Copy server configurations to sites-available
 COPY ./nginx/production/sites-available/* /etc/nginx/sites-available/
 
+COPY ./nginx/production/http.d/* /etc/nginx/http.d/
+
 # Create directory for enabled sites
 RUN mkdir /etc/nginx/sites-enabled/
 

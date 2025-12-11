@@ -12,6 +12,7 @@ services:
       - ./nginx/production/certbot-certs:/etc/letsencrypt
       - ./nginx/production/logs:/etc/nginx/logs
       - ./nginx/production/sites-available:/etc/nginx/sites-available
+      - ./nginx/production/http.d:/etc/nginx/http.d
     extra_hosts:
      - 'host.docker.internal:host-gateway'
     restart: always
