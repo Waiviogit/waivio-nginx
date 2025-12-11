@@ -1,5 +1,6 @@
 server {
         server_name dinings.pp.ua *.dinings.pp.ua;
+         if ($block_bot)       { return 403; }
 
         location / {
                 proxy_http_version 1.1;

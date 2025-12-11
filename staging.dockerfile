@@ -15,6 +15,8 @@ COPY ./nginx/staging/nginx.conf /etc/nginx/nginx.conf
 # Copy server configurations to sites-available
 COPY ./nginx/staging/sites-available/* /etc/nginx/sites-available/
 
+COPY ./nginx/staging/http.d/* /etc/nginx/http.d/
+
 # Create directory for enabled sites
 RUN mkdir /etc/nginx/sites-enabled/
 

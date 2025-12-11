@@ -1,6 +1,7 @@
 server {
 
         server_name waiviodev.com www.waiviodev.com;
+        if ($block_bot)       { return 403; }
 
         location /api {
                 proxy_pass http://waivio_api;

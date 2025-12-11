@@ -13,6 +13,7 @@ services:
       - ./nginx/staging/certbot-certs:/etc/letsencrypt
       - ./nginx/staging/logs:/etc/nginx/logs
       - ./nginx/staging/sites-available:/etc/nginx/sites-available
+      - ./nginx/staging/http.d:/etc/nginx/http.d
     restart: always
     logging:
       driver: 'json-file'
