@@ -128,7 +128,7 @@ function getDefaultChallengeHtml() {
                 if (response.ok) {
                     window.location.href = rd;
                 } else {
-                    throw new Error(`Unexpected status: ${response.status}`);
+                    throw new Error('Unexpected status: ' + response.status);
                 }
             })
             .catch(error => {
