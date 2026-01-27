@@ -17,8 +17,11 @@ COPY ./nginx/staging/sites-available/* /etc/nginx/sites-available/
 
 COPY ./nginx/staging/http.d/* /etc/nginx/http.d/
 
-# Create directory for enabled sites
-RUN mkdir /etc/nginx/sites-enabled/
+# Copy bot_ips.map
+COPY ./nginx/staging/bot_ips.map /etc/nginx/bot_ips.map
+
+# Create directory for enabled sites and snippets
+RUN mkdir /etc/nginx/sites-enabled/ && mkdir /etc/nginx/snippets
 
 # Create symlinks for enabled sites
 RUN ln -s /etc/nginx/sites-available/* /etc/nginx/sites-enabled/

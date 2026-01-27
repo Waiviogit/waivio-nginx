@@ -14,6 +14,8 @@ services:
       - ./nginx/staging/logs:/etc/nginx/logs
       - ./nginx/staging/sites-available:/etc/nginx/sites-available
       - ./nginx/staging/http.d:/etc/nginx/http.d
+      - ./nginx/staging/bot_ips.map:/etc/nginx/bot_ips.map
+      - ./nginx/staging/snippets:/etc/nginx/snippets
     restart: always
     logging:
       driver: 'json-file'
