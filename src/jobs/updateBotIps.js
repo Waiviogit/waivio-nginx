@@ -437,8 +437,8 @@ const updateBotIpsMap = async () => {
     // Прогоняем всё через агрегатор (IPv4 /32->/24, IPv6 /128->/64, нормализация и т.д.)
     const finalRanges = processIpEntries(allRawEntries);
 
-    // Пересобираем файл: default + агрегированные диапазоны
-    let content = 'default 0;\n';
+    // Пересобираем файл: агрегированные диапазоны (default уже определен в hcaptcha.conf)
+    let content = '';
     finalRanges
       .map((range) => renderRange(range))
       .sort()
