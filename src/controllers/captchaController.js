@@ -99,6 +99,10 @@ const verifyCaptcha = async (request, reply) => {
     });
 
     reply.setCookie(cookie.name, cookie.value, cookie.options);
+    
+    // Also set via header directly as fallback to ensure cookie is set
+    const cookieString = `${cookie.name}=${cookie.value}; Path=${cookie.options.Path}; Max-Age=${cookie.options.MaxAge}; HttpOnly; Secure; SameSite=${cookie.options.SameSite}`;
+    reply.header('Set-Cookie', cookieString);
 
     return reply.redirect(redirectUrl);
   } catch (error) {
