@@ -82,22 +82,34 @@
                 redirect: 'manual'
             })
             .then(response => {
+                console.log('Verify response:', response.status, response.headers.get('Location'));
+                
                 if (response.status === 302 || response.status === 301) {
                     const location = response.headers.get('Location');
+                    
+                    // If Location header contains /challenge, it's an error
+                    if (location && location.includes('/challenge')) {
+                        window.location.href = location;
+                        return;
+                    }
+                    
+                    // If Location header exists and doesn't contain /challenge, use it
                     if (location) {
-                        // Resolve relative URL
                         const redirectUrl = location.startsWith('http') 
                             ? location 
                             : new URL(location, window.location.origin).href;
                         window.location.href = redirectUrl;
-                    } else {
-                        // Fallback to rd if no Location header
-                        window.location.href = rd;
+                        return;
                     }
-                } else if (response.ok) {
-                    // Should not happen, but handle it
+                    
+                    // No Location header accessible - assume success and use rd
+                    // This happens when CORS blocks reading Location header
+                    window.location.href = rd;
+                } else if (response.status >= 200 && response.status < 300) {
+                    // Success status - use rd
                     window.location.href = rd;
                 } else {
+                    // Error status
                     throw new Error('Unexpected status: ' + response.status);
                 }
             })

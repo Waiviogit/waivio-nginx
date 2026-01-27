@@ -114,21 +114,27 @@ function getDefaultChallengeHtml() {
             })
             .then(response => {
                 if (response.status === 302 || response.status === 301) {
+                    // Try to get Location header, but if not available, use rd parameter
                     const location = response.headers.get('Location');
-                    if (location) {
-                        // Resolve relative URL
+                    if (location && !location.includes('/challenge')) {
+                        // Successful redirect - use Location header
                         const redirectUrl = location.startsWith('http') 
                             ? location 
                             : new URL(location, window.location.origin).href;
                         window.location.href = redirectUrl;
+                    } else if (location && location.includes('/challenge')) {
+                        // Error - redirected back to challenge
+                        window.location.href = location;
                     } else {
-                        // Fallback to rd if no Location header
+                        // No Location header or can't read it - use rd parameter
+                        // If we got 302, it's likely success, so redirect to rd
                         window.location.href = rd;
                     }
-                } else if (response.ok) {
-                    // Should not happen, but handle it
+                } else if (response.status >= 200 && response.status < 300) {
+                    // Success status but no redirect - use rd
                     window.location.href = rd;
                 } else {
+                    // Error status
                     throw new Error('Unexpected status: ' + response.status);
                 }
             })
