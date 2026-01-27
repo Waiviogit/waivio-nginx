@@ -109,7 +109,8 @@ function getDefaultChallengeHtml() {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: formData.toString()
+                body: formData.toString(),
+                credentials: 'include'
             })
             .then(response => {
                 // Fetch automatically follows redirects
@@ -132,8 +133,10 @@ function getDefaultChallengeHtml() {
                             targetUrl = new URL(targetUrl, window.location.origin).href;
                         }
                     }
-                    // Use replace to avoid adding to browser history
-                    window.location.replace(targetUrl);
+                    // Small delay to ensure cookie is set, then redirect
+                    setTimeout(() => {
+                        window.location.replace(targetUrl);
+                    }, 100);
                 }
             })
             .catch(error => {

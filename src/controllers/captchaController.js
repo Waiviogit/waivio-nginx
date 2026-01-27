@@ -104,6 +104,12 @@ const verifyCaptcha = async (request, reply) => {
     request.log.info({
       event: 'challenge_passed',
       ip,
+      userAgent,
+      cookieName: cookie.name,
+      cookieValue: cookie.value.substring(0, 50) + '...',
+      cookieOptions: cookie.options,
+      redirectUrl,
+      host,
     });
 
     reply.setCookie(cookie.name, cookie.value, cookie.options);
@@ -133,6 +139,14 @@ const checkCaptcha = async (request, reply) => {
 
   const cookieValue = extractCookie(cookieHeader);
 
+  request.log.debug({
+    event: 'captcha_check',
+    ip,
+    hasCookie: !!cookieValue,
+    cookieHeader: cookieHeader ? cookieHeader.substring(0, 100) : '',
+    isBotIp,
+  });
+
   if (!cookieValue) {
     request.log.info({
       event: 'challenge_required',
@@ -149,6 +163,7 @@ const checkCaptcha = async (request, reply) => {
       event: 'challenge_required',
       ip,
       reason: validation.reason,
+      userAgent,
     });
     return reply.code(401).send();
   }
