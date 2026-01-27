@@ -50,7 +50,11 @@
         <p>Please complete the verification below to continue.</p>
         <div id="error-message" class="error"></div>
         <div id="hcaptcha-container">
-            <div class="h-captcha" data-sitekey="HCAPTCHA_SITE_KEY" data-callback="onCaptchaSuccess"></div>
+            <div class="h-captcha" 
+                 data-sitekey="HCAPTCHA_SITE_KEY" 
+                 data-callback="onCaptchaSuccess"
+                 data-size="normal"
+                 data-theme="light"></div>
         </div>
         <div id="loading" class="loading" style="display: none;">Verifying...</div>
     </div>
@@ -71,16 +75,34 @@
         }
         
         // Make function global and add to window BEFORE hCaptcha loads
-        window.onCaptchaSuccess = function(token) {
+        // Use a named function to ensure it's accessible
+        function onCaptchaSuccessHandler(token) {
             console.log('=== onCaptchaSuccess CALLED ===');
             console.log('Token received:', token ? 'YES (' + token.substring(0, 20) + '...)' : 'NO');
             console.log('RD:', rd);
+            console.log('Current URL:', window.location.href);
+            
+            // Prevent any navigation
+            if (window.event) {
+                window.event.preventDefault();
+                window.event.stopPropagation();
+            }
             
             // Immediately show loading
             const loadingEl = document.getElementById('loading');
             if (loadingEl) {
                 loadingEl.style.display = 'block';
             }
+            
+            // Disable any forms
+            const forms = document.querySelectorAll('form');
+            forms.forEach(function(form) {
+                form.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                }, true);
+            });
             
             const formData = new URLSearchParams();
             formData.append('h-captcha-response', token);
@@ -150,13 +172,51 @@
             
             // Return false to prevent any default behavior
             return false;
-        };
+        }
+        
+        // Assign to window object
+        window.onCaptchaSuccess = onCaptchaSuccessHandler;
+        
+        // Also try direct assignment
+        if (typeof window.onCaptchaSuccess !== 'function') {
+            console.error('Failed to set onCaptchaSuccess function!');
+        } else {
+            console.log('onCaptchaSuccess function is set and ready');
+        }
         
         // Wait for hCaptcha to load
         window.addEventListener('load', function() {
             console.log('=== Page fully loaded ===');
             console.log('hCaptcha available:', !!window.hcaptcha);
             console.log('onCaptchaSuccess function:', typeof window.onCaptchaSuccess);
+            
+            // Try to find hCaptcha widget and add event listeners
+            const hcaptchaWidget = document.querySelector('.h-captcha');
+            if (hcaptchaWidget) {
+                console.log('hCaptcha widget found');
+                
+                // Add click listener to widget container
+                hcaptchaWidget.addEventListener('click', function(e) {
+                    console.log('=== hCaptcha widget clicked ===');
+                    console.log('Event:', e);
+                }, true);
+                
+                // Monitor for any form submissions
+                const forms = document.querySelectorAll('form');
+                console.log('Forms found:', forms.length);
+                forms.forEach(function(form, index) {
+                    console.log('Form', index, ':', form);
+                    form.addEventListener('submit', function(e) {
+                        console.log('=== Form submit detected ===');
+                        console.log('Form:', form);
+                        e.preventDefault();
+                        e.stopPropagation();
+                        return false;
+                    }, true);
+                });
+            } else {
+                console.log('hCaptcha widget NOT found');
+            }
         });
         
         // Also check when DOM is ready
@@ -167,6 +227,17 @@
         } else {
             console.log('=== DOM already ready ===');
         }
+        
+        // Monitor for page unload
+        window.addEventListener('beforeunload', function(e) {
+            console.log('=== Page unloading ===');
+            console.trace();
+        });
+        
+        // Monitor for any navigation
+        window.addEventListener('popstate', function(e) {
+            console.log('=== Popstate event ===');
+        });
     </script>
 </body>
 </html>
