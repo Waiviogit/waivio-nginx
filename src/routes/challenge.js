@@ -97,7 +97,37 @@ function getDefaultChallengeHtml() {
                 'An error occurred. Please try again.';
         }
         
-        function onCaptchaSuccess(token) {
+        // Prevent any form submissions
+        document.addEventListener('submit', function(e) {
+            console.log('Form submit prevented');
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }, true);
+        
+        // Prevent page unload
+        window.addEventListener('beforeunload', function(e) {
+            console.log('Page unloading prevented');
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        });
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const rd = urlParams.get('rd') || '/';
+        const error = urlParams.get('error');
+        
+        console.log('Page loaded, rd:', rd);
+        
+        if (error) {
+            document.getElementById('error-message').textContent = 
+                error === 'verification_failed' ? 'Verification failed. Please try again.' :
+                error === 'server_error' ? 'Server error. Please try again later.' :
+                'An error occurred. Please try again.';
+        }
+        
+        // Make function global and add to window
+        window.onCaptchaSuccess = function(token) {
             console.log('=== onCaptchaSuccess called ===');
             console.log('Token:', token ? token.substring(0, 20) + '...' : 'null');
             console.log('RD:', rd);
@@ -178,7 +208,17 @@ function getDefaultChallengeHtml() {
             
             // Return false to prevent any default behavior
             return false;
-        }
+        };
+        
+        // Wait for hCaptcha to load
+        window.addEventListener('load', function() {
+            console.log('Page fully loaded');
+            if (window.hcaptcha) {
+                console.log('hCaptcha is available');
+            } else {
+                console.log('hCaptcha not available yet');
+            }
+        });
     </script>
 </body>
 </html>`;
