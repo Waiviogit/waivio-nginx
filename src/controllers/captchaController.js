@@ -37,7 +37,19 @@ const verifyCaptcha = async (request, reply) => {
   const userAgent = request.headers['user-agent'] || '';
   const host = request.headers.host || '';
 
+  request.log.debug({
+    event: 'verify_captcha_request',
+    body: request.body,
+    hasResponse: !!hCaptchaResponse,
+    contentType: request.headers['content-type'],
+  });
+
   if (!hCaptchaResponse) {
+    request.log.warn({
+      event: 'missing_captcha_response',
+      body: request.body,
+      headers: request.headers,
+    });
     return reply.code(400).send({
       error: 'Missing h-captcha-response',
     });
@@ -51,11 +63,24 @@ const verifyCaptcha = async (request, reply) => {
   }
 
   try {
-    const verifyResponse = await axios.post(HCAPTCHA_VERIFY_URL, null, {
-      params: {
-        secret: HCAPTCHA_SECRET,
-        response: hCaptchaResponse,
-        remoteip: ip,
+    const formData = new URLSearchParams();
+    formData.append('secret', HCAPTCHA_SECRET);
+    formData.append('response', hCaptchaResponse);
+    if (ip) {
+      formData.append('remoteip', ip);
+    }
+
+    request.log.debug({
+      event: 'hcaptcha_verify_request',
+      ip,
+      hasSecret: !!HCAPTCHA_SECRET,
+      hasResponse: !!hCaptchaResponse,
+      responseLength: hCaptchaResponse ? hCaptchaResponse.length : 0,
+    });
+
+    const verifyResponse = await axios.post(HCAPTCHA_VERIFY_URL, formData.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       timeout: 5000,
     });
