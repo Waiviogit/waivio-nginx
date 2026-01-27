@@ -78,39 +78,20 @@
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: formData.toString(),
-                redirect: 'manual'
+                body: formData.toString()
             })
             .then(response => {
-                console.log('Verify response:', response.status, response.headers.get('Location'));
+                // Fetch automatically follows redirects
+                // Check the final URL after redirects
+                const finalUrl = response.url;
                 
-                if (response.status === 302 || response.status === 301) {
-                    const location = response.headers.get('Location');
-                    
-                    // If Location header contains /challenge, it's an error
-                    if (location && location.includes('/challenge')) {
-                        window.location.href = location;
-                        return;
-                    }
-                    
-                    // If Location header exists and doesn't contain /challenge, use it
-                    if (location) {
-                        const redirectUrl = location.startsWith('http') 
-                            ? location 
-                            : new URL(location, window.location.origin).href;
-                        window.location.href = redirectUrl;
-                        return;
-                    }
-                    
-                    // No Location header accessible - assume success and use rd
-                    // This happens when CORS blocks reading Location header
-                    window.location.href = rd;
-                } else if (response.status >= 200 && response.status < 300) {
-                    // Success status - use rd
-                    window.location.href = rd;
+                // If final URL contains /challenge, verification failed
+                if (finalUrl && finalUrl.includes('/challenge')) {
+                    // Reload to show error message
+                    window.location.href = finalUrl;
                 } else {
-                    // Error status
-                    throw new Error('Unexpected status: ' + response.status);
+                    // Success - redirect to rd parameter
+                    window.location.href = rd;
                 }
             })
             .catch(error => {

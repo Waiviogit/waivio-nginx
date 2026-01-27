@@ -109,33 +109,20 @@ function getDefaultChallengeHtml() {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: formData.toString(),
-                redirect: 'manual'
+                body: formData.toString()
             })
             .then(response => {
-                if (response.status === 302 || response.status === 301) {
-                    // Try to get Location header, but if not available, use rd parameter
-                    const location = response.headers.get('Location');
-                    if (location && !location.includes('/challenge')) {
-                        // Successful redirect - use Location header
-                        const redirectUrl = location.startsWith('http') 
-                            ? location 
-                            : new URL(location, window.location.origin).href;
-                        window.location.href = redirectUrl;
-                    } else if (location && location.includes('/challenge')) {
-                        // Error - redirected back to challenge
-                        window.location.href = location;
-                    } else {
-                        // No Location header or can't read it - use rd parameter
-                        // If we got 302, it's likely success, so redirect to rd
-                        window.location.href = rd;
-                    }
-                } else if (response.status >= 200 && response.status < 300) {
-                    // Success status but no redirect - use rd
-                    window.location.href = rd;
+                // Fetch automatically follows redirects
+                // Check the final URL after redirects
+                const finalUrl = response.url;
+                
+                // If final URL contains /challenge, verification failed
+                if (finalUrl && finalUrl.includes('/challenge')) {
+                    // Reload to show error message
+                    window.location.href = finalUrl;
                 } else {
-                    // Error status
-                    throw new Error('Unexpected status: ' + response.status);
+                    // Success - redirect to rd parameter
+                    window.location.href = rd;
                 }
             })
             .catch(error => {
