@@ -59,6 +59,48 @@
         <div id="loading" class="loading" style="display: none;">Verifying...</div>
     </div>
     <script>
+        // Logging helper that saves to localStorage
+        const logs = [];
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function saveLog(level, ...args) {
+            const logEntry = {
+                time: new Date().toISOString(),
+                level: level,
+                message: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ')
+            };
+            logs.push(logEntry);
+            if (logs.length > 100) logs.shift(); // Keep last 100 logs
+            try {
+                localStorage.setItem('challenge_logs', JSON.stringify(logs));
+            } catch(e) {}
+            
+            if (level === 'log') originalLog.apply(console, args);
+            if (level === 'error') originalError.apply(console, args);
+        }
+        
+        console.log = function(...args) { saveLog('log', ...args); };
+        console.error = function(...args) { saveLog('error', ...args); };
+        
+        // Display logs on page
+        function displayLogs() {
+            const logDiv = document.createElement('div');
+            logDiv.id = 'debug-logs';
+            logDiv.style.cssText = 'position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.8);color:#0f0;padding:10px;max-width:500px;max-height:400px;overflow:auto;font-family:monospace;font-size:12px;z-index:9999;border:2px solid #0f0;';
+            logDiv.innerHTML = '<div style="color:#fff;font-weight:bold;margin-bottom:5px;">Debug Logs (last 20):</div><div id="log-content"></div>';
+            document.body.appendChild(logDiv);
+            
+            const updateLogs = () => {
+                const content = logs.slice(-20).map(l => 
+                    `<div style="color:${l.level === 'error' ? '#f00' : '#0f0'}">[${l.time.split('T')[1].split('.')[0]}] ${l.message}</div>`
+                ).join('');
+                document.getElementById('log-content').innerHTML = content;
+            };
+            setInterval(updateLogs, 500);
+            updateLogs();
+        }
+        
         const urlParams = new URLSearchParams(window.location.search);
         const rd = urlParams.get('rd') || '/';
         const error = urlParams.get('error');
@@ -66,6 +108,13 @@
         console.log('=== Page script loaded ===');
         console.log('RD:', rd);
         console.log('Error:', error);
+        
+        // Show logs on page
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', displayLogs);
+        } else {
+            displayLogs();
+        }
         
         if (error) {
             document.getElementById('error-message').textContent = 
@@ -82,10 +131,30 @@
             console.log('RD:', rd);
             console.log('Current URL:', window.location.href);
             
+            // CRITICAL: Prevent any page navigation immediately
+            const preventNavigation = function(e) {
+                console.log('Navigation prevented:', e.type);
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                return false;
+            };
+            
+            window.addEventListener('beforeunload', preventNavigation, true);
+            window.addEventListener('unload', preventNavigation, true);
+            document.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A' || e.target.closest('a')) {
+                    console.log('Link click prevented');
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+            }, true);
+            
             // Prevent any navigation
             if (window.event) {
                 window.event.preventDefault();
                 window.event.stopPropagation();
+                window.event.stopImmediatePropagation();
             }
             
             // Immediately show loading
@@ -98,6 +167,7 @@
             const forms = document.querySelectorAll('form');
             forms.forEach(function(form) {
                 form.addEventListener('submit', function(e) {
+                    console.log('Form submit prevented');
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
@@ -228,10 +298,15 @@
             console.log('=== DOM already ready ===');
         }
         
-        // Monitor for page unload
+        // Monitor for page unload - but don't prevent it, just log
         window.addEventListener('beforeunload', function(e) {
             console.log('=== Page unloading ===');
-            console.trace();
+            console.log('Event:', e.type);
+            console.log('Return value:', e.returnValue);
+            // Save logs before unload
+            try {
+                localStorage.setItem('challenge_logs', JSON.stringify(logs));
+            } catch(err) {}
         });
         
         // Monitor for any navigation
