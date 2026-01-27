@@ -1,8 +1,6 @@
 server {
-
-	server_name *.social.gifts;
-	listen 80;
-	listen [::]:80;
-
-	include /etc/nginx/snippets/waivio-server.conf;
+    server_name *.social.gifts;
+    listen      80;
+    listen      [::]:80;
+    include     /etc/nginx/snippets/waivio-server.conf;
 }

@@ -1,0 +1,16 @@
+{
+  "plugins": ["prettier-plugin-nginx"],
+  "overrides": [
+    {
+      "files": [
+        "nginx/**/*.conf",
+        "nginx/**/sites-available/*",
+        "nginx/**/http.d/*.conf",
+        "nginx/**/snippets/*.conf"
+      ],
+      "options": {
+        "parser": "nginx"
+      }
+    }
+  ]
+}
