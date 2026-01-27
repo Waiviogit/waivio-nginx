@@ -73,6 +73,27 @@ function getDefaultChallengeHtml() {
             margin-top: 1rem;
         }
     </style>
+    <script>
+        window.onCaptchaSuccess = function(token) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const rd = urlParams.get('rd') || '/';
+            
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) {
+                loadingEl.style.display = 'block';
+            }
+            
+            const form = document.getElementById('verify-form');
+            const tokenInput = document.getElementById('captcha-token');
+            const rdInput = document.getElementById('redirect-param');
+            
+            if (form && tokenInput && rdInput) {
+                tokenInput.value = token;
+                rdInput.value = rd;
+                form.submit();
+            }
+        };
+    </script>
     <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 </head>
 <body>
@@ -81,13 +102,20 @@ function getDefaultChallengeHtml() {
         <p>Please complete the verification below to continue.</p>
         <div id="error-message" class="error"></div>
         <div id="hcaptcha-container">
-            <div class="h-captcha" data-sitekey="${siteKey}" data-callback="onCaptchaSuccess"></div>
+            <div class="h-captcha" 
+                 data-sitekey="${siteKey}" 
+                 data-callback="onCaptchaSuccess"
+                 data-size="normal"
+                 data-theme="light"></div>
         </div>
         <div id="loading" class="loading" style="display: none;">Verifying...</div>
+        <form id="verify-form" method="POST" action="/captcha/verify" style="display: none;">
+            <input type="hidden" name="h-captcha-response" id="captcha-token">
+            <input type="hidden" name="rd" id="redirect-param">
+        </form>
     </div>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const rd = urlParams.get('rd') || '/';
         const error = urlParams.get('error');
         
         if (error) {
@@ -96,115 +124,6 @@ function getDefaultChallengeHtml() {
                 error === 'server_error' ? 'Server error. Please try again later.' :
                 'An error occurred. Please try again.';
         }
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const rd = urlParams.get('rd') || '/';
-        const error = urlParams.get('error');
-        
-        console.log('=== Page script loaded ===');
-        console.log('RD:', rd);
-        console.log('Error:', error);
-        
-        if (error) {
-            document.getElementById('error-message').textContent = 
-                error === 'verification_failed' ? 'Verification failed. Please try again.' :
-                error === 'server_error' ? 'Server error. Please try again later.' :
-                'An error occurred. Please try again.';
-        }
-        
-        // Make function global and add to window
-        window.onCaptchaSuccess = function(token) {
-            console.log('=== onCaptchaSuccess called ===');
-            console.log('Token:', token ? token.substring(0, 20) + '...' : 'null');
-            console.log('RD:', rd);
-            
-            // Prevent any default behavior
-            if (window.event) {
-                window.event.preventDefault();
-                window.event.stopPropagation();
-            }
-            
-            document.getElementById('loading').style.display = 'block';
-            
-            const formData = new URLSearchParams();
-            formData.append('h-captcha-response', token);
-            formData.append('rd', rd);
-            
-            console.log('Starting fetch request...');
-            
-            fetch('/captcha/verify', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: formData.toString(),
-                credentials: 'include'
-            })
-            .then(response => {
-                console.log('=== Fetch response received ===');
-                console.log('Response status:', response.status);
-                console.log('Response URL:', response.url);
-                console.log('Response headers:', [...response.headers.entries()]);
-                
-                // Fetch automatically follows redirects
-                // Check the final URL after redirects
-                const finalUrl = response.url;
-                console.log('Final URL after redirects:', finalUrl);
-                
-                // Check cookies
-                console.log('Current cookies:', document.cookie);
-                
-                // If final URL contains /challenge, verification failed
-                if (finalUrl && finalUrl.includes('/challenge')) {
-                    console.log('Verification failed, redirecting to challenge');
-                    // Reload to show error message
-                    window.location.href = finalUrl;
-                } else {
-                    // Success - redirect to rd parameter
-                    // Resolve relative URLs to absolute
-                    let targetUrl = rd;
-                    if (!targetUrl.startsWith('http')) {
-                        if (targetUrl.startsWith('/')) {
-                            targetUrl = window.location.origin + targetUrl;
-                        } else {
-                            targetUrl = new URL(targetUrl, window.location.origin).href;
-                        }
-                    }
-                    console.log('Verification success, target URL:', targetUrl);
-                    console.log('Waiting 3 seconds before redirect to check cookies...');
-                    
-                    // Longer delay to check cookies in Network tab
-                    setTimeout(() => {
-                        console.log('=== About to redirect ===');
-                        console.log('Cookies before redirect:', document.cookie);
-                        console.log('Redirecting to:', targetUrl);
-                        window.location.replace(targetUrl);
-                    }, 3000);
-                }
-            })
-            .catch(error => {
-                console.error('=== Verification error ===');
-                console.error('Error:', error);
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error-message').textContent = 'Verification failed. Please try again.';
-                if (window.hcaptcha) {
-                    window.hcaptcha.reset();
-                }
-            });
-            
-            // Return false to prevent any default behavior
-            return false;
-        };
-        
-        // Wait for hCaptcha to load
-        window.addEventListener('load', function() {
-            console.log('Page fully loaded');
-            if (window.hcaptcha) {
-                console.log('hCaptcha is available');
-            } else {
-                console.log('hCaptcha not available yet');
-            }
-        });
     </script>
 </body>
 </html>`;

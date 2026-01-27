@@ -70,15 +70,6 @@ const verifyCaptcha = async (request, reply) => {
       formData.append('remoteip', ip);
     }
 
-    request.log.info({
-      event: 'hcaptcha_verify_request',
-      ip,
-      hasSecret: !!HCAPTCHA_SECRET,
-      hasResponse: !!hCaptchaResponse,
-      responseLength: hCaptchaResponse ? hCaptchaResponse.length : 0,
-      responsePreview: hCaptchaResponse ? hCaptchaResponse.substring(0, 50) : null,
-    });
-
     const verifyResponse = await axios.post(HCAPTCHA_VERIFY_URL, formData.toString(), {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -86,20 +77,7 @@ const verifyCaptcha = async (request, reply) => {
       timeout: 5000,
     });
 
-    request.log.info({
-      event: 'hcaptcha_api_response',
-      status: verifyResponse.status,
-      data: verifyResponse.data,
-    });
-
     const { success, 'error-codes': errorCodes } = verifyResponse.data;
-
-    request.log.info({
-      event: 'verification_result',
-      success,
-      errorCodes: errorCodes || [],
-      ip,
-    });
 
     if (!success) {
       request.log.warn({
@@ -112,45 +90,16 @@ const verifyCaptcha = async (request, reply) => {
       return reply.redirect(`/challenge?rd=${encodeURIComponent(redirectUrl)}&error=verification_failed`);
     }
 
-    request.log.info({
-      event: 'verification_success',
-      ip,
-      rd,
-      host,
-    });
-
     const cookie = createCookie(ip, userAgent);
     const redirectUrl = validateRedirectUrl(rd, host);
 
     request.log.info({
       event: 'challenge_passed',
       ip,
-      userAgent,
-      cookieName: cookie.name,
-      cookieValue: cookie.value.substring(0, 50) + '...',
-      cookieOptions: cookie.options,
-      redirectUrl,
-      host,
-      rd,
     });
 
-    // Set cookie before redirect
-    // Try both methods to ensure cookie is set
     reply.setCookie(cookie.name, cookie.value, cookie.options);
-    
-    // Also set via header directly as fallback
-    const cookieString = `${cookie.name}=${cookie.value}; Path=${cookie.options.Path}; Max-Age=${cookie.options.MaxAge}; HttpOnly; Secure; SameSite=${cookie.options.SameSite}`;
-    reply.header('Set-Cookie', cookieString);
-    
-    request.log.info({
-      event: 'cookie_set',
-      cookieName: cookie.name,
-      cookieValue: cookie.value.substring(0, 30) + '...',
-      options: cookie.options,
-      redirectUrl,
-      cookieString: cookieString.substring(0, 100) + '...',
-    });
-    
+
     return reply.redirect(redirectUrl);
   } catch (error) {
     request.log.error({
@@ -177,15 +126,6 @@ const checkCaptcha = async (request, reply) => {
 
   const cookieValue = extractCookie(cookieHeader);
 
-  request.log.info({
-    event: 'captcha_check',
-    ip,
-    hasCookie: !!cookieValue,
-    cookieHeader: cookieHeader ? cookieHeader.substring(0, 200) : '',
-    cookieValue: cookieValue ? cookieValue.substring(0, 50) + '...' : null,
-    isBotIp,
-  });
-
   if (!cookieValue) {
     request.log.info({
       event: 'challenge_required',
@@ -202,23 +142,9 @@ const checkCaptcha = async (request, reply) => {
       event: 'challenge_required',
       ip,
       reason: validation.reason,
-      userAgent,
-      cookieValue: cookieValue ? cookieValue.substring(0, 50) + '...' : null,
     });
     return reply.code(401).send();
   }
-
-  request.log.debug({
-    event: 'cookie_validated',
-    ip,
-    userAgent,
-    payload: validation.payload,
-  });
-
-  request.log.debug({
-    event: 'bot_ip_allowed',
-    ip,
-  });
 
   return reply.code(204).send();
 };
