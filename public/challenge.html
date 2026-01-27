@@ -42,6 +42,91 @@
             margin-top: 1rem;
         }
     </style>
+    <script>
+        // Define callback function BEFORE hCaptcha script loads
+        // This MUST be defined before hCaptcha script executes
+        window.onCaptchaSuccess = function(token) {
+            console.log('=== onCaptchaSuccess CALLED ===');
+            console.log('Token received:', token ? 'YES (' + token.substring(0, 20) + '...)' : 'NO');
+            
+            // Get rd from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const rd = urlParams.get('rd') || '/';
+            console.log('RD:', rd);
+            
+            // Immediately show loading
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) {
+                loadingEl.style.display = 'block';
+            }
+            
+            const formData = new URLSearchParams();
+            formData.append('h-captcha-response', token);
+            formData.append('rd', rd);
+            
+            console.log('Starting fetch request...');
+            
+            fetch('/captcha/verify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: formData.toString(),
+                credentials: 'include',
+                redirect: 'manual'
+            })
+            .then(response => {
+                console.log('=== Fetch response received ===');
+                console.log('Response status:', response.status);
+                
+                let location = null;
+                try {
+                    location = response.headers.get('Location');
+                    console.log('Location header:', location);
+                } catch(e) {
+                    console.log('Cannot read Location header');
+                }
+                
+                console.log('Current cookies:', document.cookie);
+                
+                if (response.status === 302 || response.status === 301) {
+                    if (location && location.includes('/challenge')) {
+                        console.log('Verification FAILED');
+                        setTimeout(() => {
+                            window.location.href = location;
+                        }, 1000);
+                    } else if (location) {
+                        console.log('Verification SUCCESS');
+                        const targetUrl = location.startsWith('http') ? location : new URL(location, window.location.origin).href;
+                        setTimeout(() => {
+                            window.location.replace(targetUrl);
+                        }, 1000);
+                    } else {
+                        setTimeout(() => {
+                            window.location.replace(rd);
+                        }, 1000);
+                    }
+                } else if (response.status === 0) {
+                    console.log('Status 0 - CORS issue, using rd parameter');
+                    setTimeout(() => {
+                        window.location.replace(rd);
+                    }, 1000);
+                } else {
+                    console.log('Unexpected status:', response.status);
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                const loadingEl = document.getElementById('loading');
+                if (loadingEl) loadingEl.style.display = 'none';
+                const errorEl = document.getElementById('error-message');
+                if (errorEl) errorEl.textContent = 'Verification failed. Please try again.';
+                if (window.hcaptcha) window.hcaptcha.reset();
+            });
+        };
+        
+        console.log('onCaptchaSuccess function defined in head:', typeof window.onCaptchaSuccess);
+    </script>
     <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 </head>
 <body>
@@ -123,8 +208,19 @@
                 'An error occurred. Please try again.';
         }
         
-        // Make function global and add to window BEFORE hCaptcha loads
-        // Use a named function to ensure it's accessible
+        // Function already defined in head, just verify it exists
+        if (typeof window.onCaptchaSuccess !== 'function') {
+            console.error('onCaptchaSuccess not defined! Defining fallback...');
+            window.onCaptchaSuccess = function(token) {
+                console.log('Fallback onCaptchaSuccess called');
+                alert('Callback function error. Please refresh the page.');
+            };
+        } else {
+            console.log('onCaptchaSuccess function verified in body');
+        }
+        
+        // OLD CODE - REMOVED, function is now in head
+        /*
         function onCaptchaSuccessHandler(token) {
             console.log('=== onCaptchaSuccess CALLED ===');
             console.log('Token received:', token ? 'YES (' + token.substring(0, 20) + '...)' : 'NO');
@@ -320,15 +416,7 @@
             return false;
         }
         
-        // Assign to window object
-        window.onCaptchaSuccess = onCaptchaSuccessHandler;
-        
-        // Also try direct assignment
-        if (typeof window.onCaptchaSuccess !== 'function') {
-            console.error('Failed to set onCaptchaSuccess function!');
-        } else {
-            console.log('onCaptchaSuccess function is set and ready');
-        }
+        */
         
         // Wait for hCaptcha to load
         window.addEventListener('load', function() {
