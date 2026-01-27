@@ -94,6 +94,13 @@ const verifyCaptcha = async (request, reply) => {
 
     const { success, 'error-codes': errorCodes } = verifyResponse.data;
 
+    request.log.info({
+      event: 'verification_result',
+      success,
+      errorCodes: errorCodes || [],
+      ip,
+    });
+
     if (!success) {
       request.log.warn({
         event: 'challenge_failed',
@@ -102,8 +109,15 @@ const verifyCaptcha = async (request, reply) => {
       });
 
       const redirectUrl = validateRedirectUrl(rd, host);
-      return reply.redirect(302, `/challenge?rd=${encodeURIComponent(redirectUrl)}&error=verification_failed`);
+      return reply.redirect(`/challenge?rd=${encodeURIComponent(redirectUrl)}&error=verification_failed`);
     }
+
+    request.log.info({
+      event: 'verification_success',
+      ip,
+      rd,
+      host,
+    });
 
     const cookie = createCookie(ip, userAgent);
     const redirectUrl = validateRedirectUrl(rd, host);
@@ -117,19 +131,21 @@ const verifyCaptcha = async (request, reply) => {
       cookieOptions: cookie.options,
       redirectUrl,
       host,
+      rd,
     });
 
     // Set cookie before redirect
     reply.setCookie(cookie.name, cookie.value, cookie.options);
     
-    request.log.debug({
+    request.log.info({
       event: 'cookie_set',
       cookieName: cookie.name,
       cookieValue: cookie.value.substring(0, 30) + '...',
       options: cookie.options,
+      redirectUrl,
     });
     
-    return reply.redirect(302, redirectUrl);
+    return reply.redirect(redirectUrl);
   } catch (error) {
     request.log.error({
       event: 'hcaptcha_api_error',
@@ -138,7 +154,7 @@ const verifyCaptcha = async (request, reply) => {
     });
 
     const redirectUrl = validateRedirectUrl(rd, host);
-    return reply.redirect(302, `/challenge?rd=${encodeURIComponent(redirectUrl)}&error=server_error`);
+    return reply.redirect(`/challenge?rd=${encodeURIComponent(redirectUrl)}&error=server_error`);
   }
 };
 
