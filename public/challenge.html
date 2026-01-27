@@ -60,70 +60,49 @@
                 loadingEl.style.display = 'block';
             }
             
-            const formData = new URLSearchParams();
-            formData.append('h-captcha-response', token);
-            formData.append('rd', rd);
+            // Use form submit instead of fetch to ensure cookies are set properly
+            const form = document.getElementById('verify-form');
+            const tokenInput = document.getElementById('captcha-token');
+            const rdInput = document.getElementById('redirect-param');
             
-            console.log('Starting fetch request...');
-            
-            fetch('/captcha/verify', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: formData.toString(),
-                credentials: 'include'
-            })
-            .then(response => {
-                console.log('=== Fetch response received ===');
-                console.log('Response status:', response.status);
-                console.log('Response URL:', response.url);
-                console.log('Response type:', response.type);
-                console.log('Response redirected:', response.redirected);
+            if (form && tokenInput && rdInput) {
+                tokenInput.value = token;
+                rdInput.value = rd;
+                console.log('Submitting form to ensure cookies are set...');
+                form.submit();
+            } else {
+                console.error('Form elements not found, falling back to fetch');
+                // Fallback to fetch if form not found
+                const formData = new URLSearchParams();
+                formData.append('h-captcha-response', token);
+                formData.append('rd', rd);
                 
-                // Fetch automatically follows redirects
-                // Check the final URL after redirects
-                const finalUrl = response.url;
-                console.log('Final URL after redirects:', finalUrl);
-                
-                // Check cookies after response
-                console.log('Current cookies:', document.cookie);
-                
-                // If final URL contains /challenge, verification failed
-                if (finalUrl && finalUrl.includes('/challenge')) {
-                    console.log('Verification FAILED - redirected back to challenge');
-                    // Wait a bit for cookie to be set (if any), then redirect
-                    setTimeout(() => {
-                        console.log('Cookies before redirect to challenge:', document.cookie);
-                        window.location.href = finalUrl;
-                    }, 500);
-                } else {
-                    // Success - redirect to rd parameter
-                    // Resolve relative URLs to absolute
-                    let targetUrl = rd;
-                    if (!targetUrl.startsWith('http')) {
-                        if (targetUrl.startsWith('/')) {
-                            targetUrl = window.location.origin + targetUrl;
-                        } else {
-                            targetUrl = new URL(targetUrl, window.location.origin).href;
-                        }
+                fetch('/captcha/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: formData.toString(),
+                    credentials: 'include'
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    console.log('Response URL:', response.url);
+                    if (response.url && response.url.includes('/challenge')) {
+                        window.location.href = response.url;
+                    } else {
+                        window.location.replace(rd);
                     }
-                    console.log('Verification SUCCESS - redirecting to:', targetUrl);
-                    // Wait for cookie to be set
-                    setTimeout(() => {
-                        console.log('Cookies before redirect:', document.cookie);
-                        window.location.replace(targetUrl);
-                    }, 500);
-                }
-            })
-            .catch(error => {
-                console.error('Fetch error:', error);
-                const loadingEl = document.getElementById('loading');
-                if (loadingEl) loadingEl.style.display = 'none';
-                const errorEl = document.getElementById('error-message');
-                if (errorEl) errorEl.textContent = 'Verification failed. Please try again.';
-                if (window.hcaptcha) window.hcaptcha.reset();
-            });
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    const loadingEl = document.getElementById('loading');
+                    if (loadingEl) loadingEl.style.display = 'none';
+                    const errorEl = document.getElementById('error-message');
+                    if (errorEl) errorEl.textContent = 'Verification failed. Please try again.';
+                    if (window.hcaptcha) window.hcaptcha.reset();
+                });
+            }
         };
         
         console.log('onCaptchaSuccess function defined in head:', typeof window.onCaptchaSuccess);
@@ -143,6 +122,10 @@
                  data-theme="light"></div>
         </div>
         <div id="loading" class="loading" style="display: none;">Verifying...</div>
+        <form id="verify-form" method="POST" action="/captcha/verify" style="display: none;">
+            <input type="hidden" name="h-captcha-response" id="captcha-token">
+            <input type="hidden" name="rd" id="redirect-param">
+        </form>
     </div>
     <script>
         // Logging helper that saves to localStorage
