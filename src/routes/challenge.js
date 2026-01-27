@@ -97,27 +97,13 @@ function getDefaultChallengeHtml() {
                 'An error occurred. Please try again.';
         }
         
-        // Prevent any form submissions
-        document.addEventListener('submit', function(e) {
-            console.log('Form submit prevented');
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }, true);
-        
-        // Prevent page unload
-        window.addEventListener('beforeunload', function(e) {
-            console.log('Page unloading prevented');
-            e.preventDefault();
-            e.returnValue = '';
-            return '';
-        });
-        
         const urlParams = new URLSearchParams(window.location.search);
         const rd = urlParams.get('rd') || '/';
         const error = urlParams.get('error');
         
-        console.log('Page loaded, rd:', rd);
+        console.log('=== Page script loaded ===');
+        console.log('RD:', rd);
+        console.log('Error:', error);
         
         if (error) {
             document.getElementById('error-message').textContent = 

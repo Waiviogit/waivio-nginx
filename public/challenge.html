@@ -55,27 +55,13 @@
         <div id="loading" class="loading" style="display: none;">Verifying...</div>
     </div>
     <script>
-        // Prevent any form submissions
-        document.addEventListener('submit', function(e) {
-            console.log('Form submit prevented');
-            e.preventDefault();
-            e.stopPropagation();
-            return false;
-        }, true);
-        
-        // Prevent page unload
-        window.addEventListener('beforeunload', function(e) {
-            console.log('Page unloading prevented');
-            e.preventDefault();
-            e.returnValue = '';
-            return '';
-        });
-        
         const urlParams = new URLSearchParams(window.location.search);
         const rd = urlParams.get('rd') || '/';
         const error = urlParams.get('error');
         
-        console.log('Page loaded, rd:', rd);
+        console.log('=== Page script loaded ===');
+        console.log('RD:', rd);
+        console.log('Error:', error);
         
         if (error) {
             document.getElementById('error-message').textContent = 
@@ -84,19 +70,17 @@
                 'An error occurred. Please try again.';
         }
         
-        // Make function global and add to window
+        // Make function global and add to window BEFORE hCaptcha loads
         window.onCaptchaSuccess = function(token) {
-            console.log('=== onCaptchaSuccess called ===');
-            console.log('Token:', token ? token.substring(0, 20) + '...' : 'null');
+            console.log('=== onCaptchaSuccess CALLED ===');
+            console.log('Token received:', token ? 'YES (' + token.substring(0, 20) + '...)' : 'NO');
             console.log('RD:', rd);
             
-            // Prevent any default behavior
-            if (window.event) {
-                window.event.preventDefault();
-                window.event.stopPropagation();
+            // Immediately show loading
+            const loadingEl = document.getElementById('loading');
+            if (loadingEl) {
+                loadingEl.style.display = 'block';
             }
-            
-            document.getElementById('loading').style.display = 'block';
             
             const formData = new URLSearchParams();
             formData.append('h-captcha-response', token);
@@ -170,13 +154,19 @@
         
         // Wait for hCaptcha to load
         window.addEventListener('load', function() {
-            console.log('Page fully loaded');
-            if (window.hcaptcha) {
-                console.log('hCaptcha is available');
-            } else {
-                console.log('hCaptcha not available yet');
-            }
+            console.log('=== Page fully loaded ===');
+            console.log('hCaptcha available:', !!window.hcaptcha);
+            console.log('onCaptchaSuccess function:', typeof window.onCaptchaSuccess);
         });
+        
+        // Also check when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('=== DOM Content Loaded ===');
+            });
+        } else {
+            console.log('=== DOM already ready ===');
+        }
     </script>
 </body>
 </html>
