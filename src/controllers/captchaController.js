@@ -70,12 +70,13 @@ const verifyCaptcha = async (request, reply) => {
       formData.append('remoteip', ip);
     }
 
-    request.log.debug({
+    request.log.info({
       event: 'hcaptcha_verify_request',
       ip,
       hasSecret: !!HCAPTCHA_SECRET,
       hasResponse: !!hCaptchaResponse,
       responseLength: hCaptchaResponse ? hCaptchaResponse.length : 0,
+      responsePreview: hCaptchaResponse ? hCaptchaResponse.substring(0, 50) : null,
     });
 
     const verifyResponse = await axios.post(HCAPTCHA_VERIFY_URL, formData.toString(), {
@@ -83,6 +84,12 @@ const verifyCaptcha = async (request, reply) => {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       timeout: 5000,
+    });
+
+    request.log.info({
+      event: 'hcaptcha_api_response',
+      status: verifyResponse.status,
+      data: verifyResponse.data,
     });
 
     const { success, 'error-codes': errorCodes } = verifyResponse.data;
