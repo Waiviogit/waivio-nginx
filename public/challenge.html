@@ -186,27 +186,103 @@
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: formData.toString(),
-                credentials: 'include'
+                credentials: 'include',
+                redirect: 'manual'
             })
             .then(response => {
                 console.log('=== Fetch response received ===');
                 console.log('Response status:', response.status);
+                console.log('Response type:', response.type);
                 console.log('Response URL:', response.url);
-                console.log('Response headers:', [...response.headers.entries()]);
                 
-                // Fetch automatically follows redirects
-                // Check the final URL after redirects
-                const finalUrl = response.url;
-                console.log('Final URL after redirects:', finalUrl);
+                // Try to read Location header
+                let location = null;
+                try {
+                    location = response.headers.get('Location');
+                    console.log('Location header:', location);
+                } catch(e) {
+                    console.log('Cannot read Location header:', e);
+                }
+                
+                // Try to read Set-Cookie header
+                let setCookie = null;
+                try {
+                    setCookie = response.headers.get('Set-Cookie');
+                    console.log('Set-Cookie header:', setCookie);
+                } catch(e) {
+                    console.log('Cannot read Set-Cookie header:', e);
+                }
+                
+                // Log all headers
+                try {
+                    const headerEntries = [];
+                    response.headers.forEach((value, key) => {
+                        headerEntries.push([key, value]);
+                        console.log('Header:', key, '=', value);
+                    });
+                    console.log('All headers:', headerEntries);
+                } catch(e) {
+                    console.log('Cannot iterate headers:', e);
+                }
                 
                 // Check cookies
                 console.log('Current cookies:', document.cookie);
                 
-                // If final URL contains /challenge, verification failed
-                if (finalUrl && finalUrl.includes('/challenge')) {
-                    console.log('Verification failed, redirecting to challenge');
-                    // Reload to show error message
-                    window.location.href = finalUrl;
+                if (response.status === 302 || response.status === 301 || response.status === 0) {
+                    // Redirect response
+                    if (location && location.includes('/challenge')) {
+                        console.log('Verification FAILED - redirected to challenge');
+                        console.log('Location:', location);
+                        setTimeout(() => {
+                            window.location.href = location;
+                        }, 1000);
+                    } else if (location) {
+                        console.log('Verification SUCCESS - redirecting to:', location);
+                        const targetUrl = location.startsWith('http') ? location : new URL(location, window.location.origin).href;
+                        setTimeout(() => {
+                            console.log('Final cookies before redirect:', document.cookie);
+                            window.location.replace(targetUrl);
+                        }, 1000);
+                    } else {
+                        console.log('No Location header, status:', response.status);
+                        // If status is 0, it might be CORS issue - try using rd
+                        if (response.status === 0) {
+                            console.log('Status 0 - CORS issue, using rd parameter');
+                            setTimeout(() => {
+                                window.location.replace(rd);
+                            }, 1000);
+                        }
+                    }
+                } else if (response.status >= 200 && response.status < 300) {
+                    console.log('Got 200 status - unexpected');
+                    // Read response to see what we got
+                    response.text().then(text => {
+                        console.log('Response text preview:', text.substring(0, 200));
+                        if (text.includes('Verification Required')) {
+                            console.log('Got challenge page - verification failed');
+                            window.location.href = window.location.href.split('&error=')[0] + '&error=verification_failed';
+                        }
+                    });
+                } else {
+                    console.log('Error status:', response.status);
+                }
+            })
+            .catch(error => {
+                console.error('=== Fetch error ===');
+                console.error('Error:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error-message').textContent = 'Verification failed. Please try again.';
+                if (window.hcaptcha) {
+                    window.hcaptcha.reset();
+                }
+            });
+            
+            // Old code removed - was causing issues
+            return false;
+        }
+        
+        // OLD CODE REMOVED - was checking finalUrl which was wrong
+        /*
                 } else {
                     // Success - redirect to rd parameter
                     // Resolve relative URLs to absolute
