@@ -104,6 +104,8 @@ function getDefaultChallengeHtml() {
             formData.append('h-captcha-response', token);
             formData.append('rd', rd);
             
+            console.log('Starting verification, rd:', rd);
+            
             fetch('/captcha/verify', {
                 method: 'POST',
                 headers: {
@@ -113,12 +115,21 @@ function getDefaultChallengeHtml() {
                 credentials: 'include'
             })
             .then(response => {
+                console.log('Response status:', response.status);
+                console.log('Response URL:', response.url);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
                 // Fetch automatically follows redirects
                 // Check the final URL after redirects
                 const finalUrl = response.url;
+                console.log('Final URL after redirects:', finalUrl);
+                
+                // Check cookies
+                console.log('Current cookies:', document.cookie);
                 
                 // If final URL contains /challenge, verification failed
                 if (finalUrl && finalUrl.includes('/challenge')) {
+                    console.log('Verification failed, redirecting to challenge');
                     // Reload to show error message
                     window.location.href = finalUrl;
                 } else {
@@ -132,14 +143,19 @@ function getDefaultChallengeHtml() {
                             targetUrl = new URL(targetUrl, window.location.origin).href;
                         }
                     }
-                    // Small delay to ensure cookie is set before redirect
-                    // Cookie is set by server in Set-Cookie header during redirect
+                    console.log('Verification success, target URL:', targetUrl);
+                    console.log('Waiting 2 seconds before redirect to check cookies...');
+                    
+                    // Longer delay to check cookies in Network tab
                     setTimeout(() => {
+                        console.log('Cookies before redirect:', document.cookie);
+                        console.log('Redirecting to:', targetUrl);
                         window.location.replace(targetUrl);
-                    }, 100);
+                    }, 2000);
                 }
             })
             .catch(error => {
+                console.error('Verification error:', error);
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('error-message').textContent = 'Verification failed. Please try again.';
                 if (window.hcaptcha) {
