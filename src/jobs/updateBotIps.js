@@ -446,28 +446,46 @@ const updateBotIpsMap = async () => {
         content += `${key} 1;\n`;
       });
 
+    // Write to temp file first for validation
     await fs.writeFile(BOT_IPS_TEMP_PATH, content, 'utf8');
 
     try {
       await execPromise('nginx -t');
     } catch (error) {
       console.error('Nginx config test failed, skipping update:', error.message);
+      await fs.unlink(BOT_IPS_TEMP_PATH).catch(() => {});
       return;
     }
 
-    await fs.rename(BOT_IPS_TEMP_PATH, BOT_IPS_MAP_PATH);
+    // Try atomic rename first (preferred method)
+    try {
+      await fs.rename(BOT_IPS_TEMP_PATH, BOT_IPS_MAP_PATH);
+    } catch (renameError) {
+      // If rename fails with EBUSY, nginx has the file open
+      // Write directly to target file (works even if file is open for reading)
+      if (renameError.code === 'EBUSY') {
+        await fs.writeFile(BOT_IPS_MAP_PATH, content, 'utf8');
+        await fs.unlink(BOT_IPS_TEMP_PATH).catch(() => {});
+      } else {
+        await fs.unlink(BOT_IPS_TEMP_PATH).catch(() => {});
+        throw renameError;
+      }
+    }
 
+    // Single reload after file update to pick up new content
     try {
       await execPromise('nginx -s reload');
-      console.log(`Bot IPs map updated: ${finalRanges.length} ranges (from ${ips.length} entries)`);
-      try {
-        await client.del(redisKey);
-        console.log(`Removed processed IPs from Redis key: ${redisKey}`);
-      } catch (delError) {
-        console.error(`Failed to delete Redis key ${redisKey}:`, delError.message);
-      }
     } catch (error) {
       console.error('Failed to reload nginx:', error.message);
+      return;
+    }
+
+    console.log(`Bot IPs map updated: ${finalRanges.length} ranges (from ${ips.length} entries)`);
+    try {
+      await client.del(redisKey);
+      console.log(`Removed processed IPs from Redis key: ${redisKey}`);
+    } catch (delError) {
+      console.error(`Failed to delete Redis key ${redisKey}:`, delError.message);
     }
   } catch (error) {
     console.error('Error updating bot IPs map:', error.message);
