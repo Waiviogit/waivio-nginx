@@ -171,11 +171,12 @@ const checkCaptcha = async (request, reply) => {
 
   const cookieValue = extractCookie(cookieHeader);
 
-  request.log.debug({
+  request.log.info({
     event: 'captcha_check',
     ip,
     hasCookie: !!cookieValue,
-    cookieHeader: cookieHeader ? cookieHeader.substring(0, 100) : '',
+    cookieHeader: cookieHeader ? cookieHeader.substring(0, 200) : '',
+    cookieValue: cookieValue ? cookieValue.substring(0, 50) + '...' : null,
     isBotIp,
   });
 
