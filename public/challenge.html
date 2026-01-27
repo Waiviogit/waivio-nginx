@@ -69,7 +69,15 @@
                 tokenInput.value = token;
                 rdInput.value = rd;
                 console.log('Submitting form to ensure cookies are set...');
+                console.log('Form action:', form.action);
+                console.log('Form method:', form.method);
+                
+                // Check cookies before submit
+                console.log('Cookies before form submit:', document.cookie);
+                
+                // Submit form - browser will handle redirect and cookie setting
                 form.submit();
+                return;
             } else {
                 console.error('Form elements not found, falling back to fetch');
                 // Fallback to fetch if form not found

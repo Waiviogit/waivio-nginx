@@ -135,7 +135,12 @@ const verifyCaptcha = async (request, reply) => {
     });
 
     // Set cookie before redirect
+    // Try both methods to ensure cookie is set
     reply.setCookie(cookie.name, cookie.value, cookie.options);
+    
+    // Also set via header directly as fallback
+    const cookieString = `${cookie.name}=${cookie.value}; Path=${cookie.options.Path}; Max-Age=${cookie.options.MaxAge}; HttpOnly; Secure; SameSite=${cookie.options.SameSite}`;
+    reply.header('Set-Cookie', cookieString);
     
     request.log.info({
       event: 'cookie_set',
@@ -143,6 +148,7 @@ const verifyCaptcha = async (request, reply) => {
       cookieValue: cookie.value.substring(0, 30) + '...',
       options: cookie.options,
       redirectUrl,
+      cookieString: cookieString.substring(0, 100) + '...',
     });
     
     return reply.redirect(redirectUrl);
