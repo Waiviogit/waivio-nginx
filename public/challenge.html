@@ -91,7 +91,18 @@
                     window.location.href = finalUrl;
                 } else {
                     // Success - redirect to rd parameter
-                    window.location.href = rd;
+                    // Resolve relative URLs to absolute
+                    let targetUrl = rd;
+                    if (!targetUrl.startsWith('http')) {
+                        // Handle relative URLs
+                        if (targetUrl.startsWith('/')) {
+                            targetUrl = window.location.origin + targetUrl;
+                        } else {
+                            targetUrl = new URL(targetUrl, window.location.origin).href;
+                        }
+                    }
+                    // Use replace to avoid adding to browser history
+                    window.location.replace(targetUrl);
                 }
             })
             .catch(error => {
