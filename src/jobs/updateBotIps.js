@@ -9,7 +9,7 @@ const execPromise = util.promisify(exec);
 
 const BOT_IPS_MAP_PATH = process.env.BOT_IPS_MAP_PATH || '/etc/nginx/bot_ips.map';
 const BOT_IPS_TEMP_PATH = process.env.BOT_IPS_TEMP_PATH || '/tmp/bot_ips.map.tmp';
-const REDIS_KEY = process.env.REDIS_BOT_IPS_KEY || 'bot:ips';
+const REDIS_KEY = process.env.REDIS_BOT_IPS_KEY || 'api_bot_detection';
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
 const REDIS_PORT = process.env.REDIS_PORT || 6379;
 const REDIS_DB = process.env.REDIS_DB || 11;
