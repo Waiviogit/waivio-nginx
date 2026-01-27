@@ -132,8 +132,11 @@ function getDefaultChallengeHtml() {
                             targetUrl = new URL(targetUrl, window.location.origin).href;
                         }
                     }
-                    // Redirect immediately - cookie should be set by server
-                    window.location.replace(targetUrl);
+                    // Small delay to ensure cookie is set before redirect
+                    // Cookie is set by server in Set-Cookie header during redirect
+                    setTimeout(() => {
+                        window.location.replace(targetUrl);
+                    }, 100);
                 }
             })
             .catch(error => {

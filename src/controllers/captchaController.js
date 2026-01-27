@@ -173,9 +173,17 @@ const checkCaptcha = async (request, reply) => {
       ip,
       reason: validation.reason,
       userAgent,
+      cookieValue: cookieValue ? cookieValue.substring(0, 50) + '...' : null,
     });
     return reply.code(401).send();
   }
+
+  request.log.debug({
+    event: 'cookie_validated',
+    ip,
+    userAgent,
+    payload: validation.payload,
+  });
 
   request.log.debug({
     event: 'bot_ip_allowed',
