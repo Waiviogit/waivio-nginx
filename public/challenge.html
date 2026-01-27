@@ -79,33 +79,55 @@
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: formData.toString(),
-                credentials: 'include'
+                credentials: 'include',
+                redirect: 'manual'
             })
             .then(response => {
-                // Fetch automatically follows redirects
-                // Check the final URL after redirects
-                const finalUrl = response.url;
+                console.log('Verify response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
                 
-                // If final URL contains /challenge, verification failed
-                if (finalUrl && finalUrl.includes('/challenge')) {
-                    // Reload to show error message
-                    window.location.href = finalUrl;
-                } else {
-                    // Success - redirect to rd parameter
-                    // Resolve relative URLs to absolute
+                // Check Set-Cookie header
+                const setCookie = response.headers.get('Set-Cookie');
+                console.log('Set-Cookie header:', setCookie);
+                
+                if (response.status === 302 || response.status === 301) {
+                    const location = response.headers.get('Location');
+                    console.log('Location header:', location);
+                    
+                    // If Location contains /challenge, verification failed
+                    if (location && location.includes('/challenge')) {
+                        window.location.href = location;
+                    } else {
+                        // Success - redirect to location or rd
+                        const targetUrl = location || rd;
+                        let finalUrl = targetUrl;
+                        if (!finalUrl.startsWith('http')) {
+                            if (finalUrl.startsWith('/')) {
+                                finalUrl = window.location.origin + finalUrl;
+                            } else {
+                                finalUrl = new URL(finalUrl, window.location.origin).href;
+                            }
+                        }
+                        // Give browser time to process Set-Cookie
+                        setTimeout(() => {
+                            window.location.replace(finalUrl);
+                        }, 200);
+                    }
+                } else if (response.status >= 200 && response.status < 300) {
+                    // Success without redirect
                     let targetUrl = rd;
                     if (!targetUrl.startsWith('http')) {
-                        // Handle relative URLs
                         if (targetUrl.startsWith('/')) {
                             targetUrl = window.location.origin + targetUrl;
                         } else {
                             targetUrl = new URL(targetUrl, window.location.origin).href;
                         }
                     }
-                    // Small delay to ensure cookie is set, then redirect
                     setTimeout(() => {
                         window.location.replace(targetUrl);
-                    }, 100);
+                    }, 200);
+                } else {
+                    throw new Error('Unexpected status: ' + response.status);
                 }
             })
             .catch(error => {
