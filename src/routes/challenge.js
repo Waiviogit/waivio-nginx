@@ -98,13 +98,23 @@ function getDefaultChallengeHtml() {
         }
         
         function onCaptchaSuccess(token) {
+            console.log('=== onCaptchaSuccess called ===');
+            console.log('Token:', token ? token.substring(0, 20) + '...' : 'null');
+            console.log('RD:', rd);
+            
+            // Prevent any default behavior
+            if (window.event) {
+                window.event.preventDefault();
+                window.event.stopPropagation();
+            }
+            
             document.getElementById('loading').style.display = 'block';
             
             const formData = new URLSearchParams();
             formData.append('h-captcha-response', token);
             formData.append('rd', rd);
             
-            console.log('Starting verification, rd:', rd);
+            console.log('Starting fetch request...');
             
             fetch('/captcha/verify', {
                 method: 'POST',
@@ -115,6 +125,7 @@ function getDefaultChallengeHtml() {
                 credentials: 'include'
             })
             .then(response => {
+                console.log('=== Fetch response received ===');
                 console.log('Response status:', response.status);
                 console.log('Response URL:', response.url);
                 console.log('Response headers:', [...response.headers.entries()]);
@@ -144,24 +155,29 @@ function getDefaultChallengeHtml() {
                         }
                     }
                     console.log('Verification success, target URL:', targetUrl);
-                    console.log('Waiting 2 seconds before redirect to check cookies...');
+                    console.log('Waiting 3 seconds before redirect to check cookies...');
                     
                     // Longer delay to check cookies in Network tab
                     setTimeout(() => {
+                        console.log('=== About to redirect ===');
                         console.log('Cookies before redirect:', document.cookie);
                         console.log('Redirecting to:', targetUrl);
                         window.location.replace(targetUrl);
-                    }, 2000);
+                    }, 3000);
                 }
             })
             .catch(error => {
-                console.error('Verification error:', error);
+                console.error('=== Verification error ===');
+                console.error('Error:', error);
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('error-message').textContent = 'Verification failed. Please try again.';
                 if (window.hcaptcha) {
                     window.hcaptcha.reset();
                 }
             });
+            
+            // Return false to prevent any default behavior
+            return false;
         }
     </script>
 </body>
