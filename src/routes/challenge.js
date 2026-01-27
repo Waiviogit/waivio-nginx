@@ -118,11 +118,10 @@ function getDefaultChallengeHtml() {
                 // If redirected back to challenge page, it means verification failed
                 if (finalUrl && finalUrl.includes('/challenge')) {
                     window.location.href = finalUrl;
-                } else if (response.ok || response.redirected) {
-                    // Successful redirect - use the final URL or fallback to rd
-                    window.location.href = finalUrl || rd;
                 } else {
-                    throw new Error('Unexpected response status: ' + response.status);
+                    // Successful - server already redirected, but fetch loaded the page
+                    // Use rd parameter which contains the original destination
+                    window.location.href = rd;
                 }
             })
             .catch(error => {
