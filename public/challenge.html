@@ -78,26 +78,20 @@
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: formData.toString(),
-                redirect: 'manual'
+                body: formData.toString()
             })
             .then(response => {
-                // Handle redirect (302, 301, or status 0 for opaque redirects)
-                if (response.status === 302 || response.status === 301 || response.status === 0) {
-                    const location = response.headers.get('Location');
-                    if (location) {
-                        // Resolve relative URLs
-                        const redirectUrl = location.startsWith('http') ? location : new URL(location, window.location.origin).href;
-                        window.location.href = redirectUrl;
-                        return;
-                    }
-                }
+                // Fetch follows redirects automatically, check the final URL
+                const finalUrl = response.url;
                 
-                // If we get here, something unexpected happened
-                if (response.ok) {
-                    window.location.href = rd;
+                // If redirected back to challenge page, it means verification failed
+                if (finalUrl && finalUrl.includes('/challenge')) {
+                    window.location.href = finalUrl;
+                } else if (response.ok || response.redirected) {
+                    // Successful redirect - use the final URL or fallback to rd
+                    window.location.href = finalUrl || rd;
                 } else {
-                    throw new Error(`Unexpected status: ${response.status}`);
+                    throw new Error('Unexpected response status: ' + response.status);
                 }
             })
             .catch(error => {
