@@ -12,7 +12,13 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #fbe3cf, #f4c3a1), repeating-linear-gradient(
+                    45deg,
+                    rgba(248,112,7,0.055),
+                    rgba(248,112,7,0.055) 1px,
+                    transparent 1px,
+                    transparent 6px
+            );
         }
         .container {
             background: white;
@@ -46,16 +52,16 @@
         window.onCaptchaSuccess = function(token) {
             const urlParams = new URLSearchParams(window.location.search);
             const rd = urlParams.get('rd') || '/';
-            
+
             const loadingEl = document.getElementById('loading');
             if (loadingEl) {
                 loadingEl.style.display = 'block';
             }
-            
+
             const form = document.getElementById('verify-form');
             const tokenInput = document.getElementById('captcha-token');
             const rdInput = document.getElementById('redirect-param');
-            
+
             if (form && tokenInput && rdInput) {
                 tokenInput.value = token;
                 rdInput.value = rd;
@@ -71,8 +77,8 @@
         <p>Please complete the verification below to continue.</p>
         <div id="error-message" class="error"></div>
         <div id="hcaptcha-container">
-            <div class="h-captcha" 
-                 data-sitekey="HCAPTCHA_SITE_KEY" 
+            <div class="h-captcha"
+                 data-sitekey="HCAPTCHA_SITE_KEY"
                  data-callback="onCaptchaSuccess"
                  data-size="normal"
                  data-theme="light"></div>
@@ -86,9 +92,9 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const error = urlParams.get('error');
-        
+
         if (error) {
-            document.getElementById('error-message').textContent = 
+            document.getElementById('error-message').textContent =
                 error === 'verification_failed' ? 'Verification failed. Please try again.' :
                 error === 'server_error' ? 'Server error. Please try again later.' :
                 'An error occurred. Please try again.';
