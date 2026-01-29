@@ -69,3 +69,7 @@ env/
 .next
 
 package-lock.json
+
+# Bot IPs map files (dynamically updated by updateBotIps job)
+nginx/production/bot_ips.map
+nginx/staging/bot_ips.map
