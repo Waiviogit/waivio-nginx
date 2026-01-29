@@ -16,6 +16,12 @@ const REDIS_DB = process.env.REDIS_DB || 11;
 const { REDIS_PASSWORD } = process.env;
 const UPDATE_INTERVAL = process.env.BOT_IPS_UPDATE_INTERVAL || '*/5 * * * *';
 
+// Whitelisted IPs that should never be blocked
+const WHITELISTED_IPS = [
+  '206.189.200.117',
+  '142.93.98.71',
+];
+
 // Aggregation / promotion settings
 // First level: single IPs -> /24 (IPv4) or /64 (IPv6)
 // Second level: many /24 -> /12 (IPv4), many /64 -> /32 (IPv6)
@@ -34,6 +40,69 @@ const getCurrentDateString = () => {
   const year = date.getFullYear();
 
   return `${day}-${month}-${year}`;
+};
+
+const isWhitelisted = (ipEntry) => {
+  try {
+    let entryAddr;
+    let entryPrefix;
+
+    if (ipEntry.includes('/')) {
+      [entryAddr, entryPrefix] = ipaddr.parseCIDR(ipEntry);
+    } else {
+      entryAddr = ipaddr.parse(ipEntry);
+      entryPrefix = entryAddr.kind() === 'ipv4' ? 32 : 128;
+    }
+
+    for (const whitelistIp of WHITELISTED_IPS) {
+      try {
+        let whitelistAddr;
+        let whitelistPrefix;
+
+        if (whitelistIp.includes('/')) {
+          [whitelistAddr, whitelistPrefix] = ipaddr.parseCIDR(whitelistIp);
+        } else {
+          whitelistAddr = ipaddr.parse(whitelistIp);
+          whitelistPrefix = whitelistAddr.kind() === 'ipv4' ? 32 : 128;
+        }
+
+        // Check if entry matches whitelist IP exactly
+        if (
+          entryAddr.kind() === whitelistAddr.kind()
+          && entryAddr.toString() === whitelistAddr.toString()
+          && entryPrefix === whitelistPrefix
+        ) {
+          return true;
+        }
+
+        // Check if entry is within whitelisted range
+        if (
+          entryAddr.kind() === whitelistAddr.kind()
+          && entryPrefix >= whitelistPrefix
+          && entryAddr.match([whitelistAddr, whitelistPrefix])
+        ) {
+          return true;
+        }
+
+        // Check if whitelist IP is within entry range (entry covers whitelist)
+        if (
+          entryAddr.kind() === whitelistAddr.kind()
+          && whitelistPrefix >= entryPrefix
+          && whitelistAddr.match([entryAddr, entryPrefix])
+        ) {
+          return true;
+        }
+      } catch (e) {
+        // Invalid whitelist entry, skip
+        continue;
+      }
+    }
+
+    return false;
+  } catch (e) {
+    // Invalid entry, don't whitelist
+    return false;
+  }
 };
 
 let redisClient = null;
@@ -434,8 +503,17 @@ const updateBotIpsMap = async () => {
     // Добавляем свежие IP из Redis
     allRawEntries.push(...ips);
 
+    // Filter out whitelisted IPs
+    const filteredEntries = allRawEntries.filter((entry) => !isWhitelisted(entry));
+
     // Прогоняем всё через агрегатор (IPv4 /32->/24, IPv6 /128->/64, нормализация и т.д.)
-    const finalRanges = processIpEntries(allRawEntries);
+    let finalRanges = processIpEntries(filteredEntries);
+
+    // Filter out any final ranges that would include whitelisted IPs
+    finalRanges = finalRanges.filter((range) => {
+      const rangeStr = renderRange(range);
+      return !isWhitelisted(rangeStr);
+    });
 
     // Пересобираем файл: агрегированные диапазоны (default уже определен в hcaptcha.conf)
     let content = '';
