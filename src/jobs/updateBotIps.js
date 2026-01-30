@@ -598,6 +598,6 @@ exports.updateBotIpsJob = new CronJob(
   false,
 );
 
-if (process.env.NODE_ENV !== 'test') {
-  updateBotIpsMap().catch(console.error);
-}
+// if (process.env.NODE_ENV !== 'test') {
+//    updateBotIpsMap().catch(console.error);
+// }
