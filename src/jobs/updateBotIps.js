@@ -112,6 +112,16 @@ const initRedis = async () => {
     return redisClient;
   }
 
+  // Close orphaned client before creating new one to avoid leaking sockets/listeners
+  if (redisClient) {
+    try {
+      await redisClient.quit();
+    } catch (e) {
+      redisClient.disconnect?.();
+    }
+    redisClient = null;
+  }
+
   const config = {
     socket: {
       host: REDIS_HOST,
