@@ -24,7 +24,7 @@ const WHITELISTED_IPS = [
 
 // Aggregation / promotion settings
 // First level: single IPs -> /24 (IPv4) or /64 (IPv6)
-// Second level: many /24 -> /12 (IPv4), many /64 -> /32 (IPv6)
+// Second level: many /24 -> /16 (IPv4), many /64 -> /48 (IPv6)
 const SOFT_V4_MAX_PREFIX = 24; // we always aggregate single IPv4 IPs up to /24
 const SOFT_V6_MAX_PREFIX = 64; // we always aggregate single IPv6 IPs up to /64
 
@@ -264,7 +264,7 @@ const promoteSoftV6 = (softV6) => {
   return result;
 };
 
-const promoteV4To12 = (entries) => {
+const promoteV4To16 = (entries) => {
   if (!entries.length) return [];
 
   const v4 = [];
@@ -283,15 +283,14 @@ const promoteV4To12 = (entries) => {
   v4.forEach((entry, index) => {
     if (entry.prefix !== 24) return;
 
-    // Calculate base network address for /12
+    // Calculate base network address for /16 (first 2 octets, zero the rest)
     const bytes = entry.addr.toByteArray();
-    bytes[1] &= 0xF0; // Keep first 4 bits of second octet, zero the rest
     bytes[2] = 0;
     bytes[3] = 0;
     const parentAddr = ipaddr.fromByteArray(bytes);
-    const key = `${parentAddr.toString()}/12`;
+    const key = `${parentAddr.toString()}/16`;
 
-    const group = parentMap.get(key) || { addr: parentAddr, prefix: 12, indexes: [] };
+    const group = parentMap.get(key) || { addr: parentAddr, prefix: 16, indexes: [] };
     group.indexes.push(index);
     parentMap.set(key, group);
   });
@@ -308,15 +307,14 @@ const promoteV4To12 = (entries) => {
 
   v4.forEach((entry) => {
     if (entry.prefix === 24) {
-      // Calculate base network address for /12
+      // Calculate base network address for /16
       const bytes = entry.addr.toByteArray();
-      bytes[1] &= 0xF0; // Keep first 4 bits of second octet, zero the rest
       bytes[2] = 0;
       bytes[3] = 0;
       const parentAddr = ipaddr.fromByteArray(bytes);
-      const parentKey = `${parentAddr.toString()}/12`;
+      const parentKey = `${parentAddr.toString()}/16`;
       if (promotedParents.has(parentKey)) {
-        // covered by promoted /12
+        // covered by promoted /16
         return;
       }
     }
@@ -331,7 +329,7 @@ const promoteV4To12 = (entries) => {
   return [...resultV4, ...others];
 };
 
-const promoteV6To32 = (entries) => {
+const promoteV6To48 = (entries) => {
   if (!entries.length) return [];
 
   const v6 = [];
@@ -350,15 +348,15 @@ const promoteV6To32 = (entries) => {
   v6.forEach((entry, index) => {
     if (entry.prefix !== 64) return;
 
-    // Calculate base network address for /32
+    // Calculate base network address for /48 (first 6 bytes, zero the rest)
     const bytes = entry.addr.toByteArray();
-    for (let i = 4; i < 16; i += 1) {
+    for (let i = 6; i < 16; i += 1) {
       bytes[i] = 0;
     }
     const parentAddr = ipaddr.fromByteArray(bytes);
-    const key = `${parentAddr.toString()}/32`;
+    const key = `${parentAddr.toString()}/48`;
 
-    const group = parentMap.get(key) || { addr: parentAddr, prefix: 32, indexes: [] };
+    const group = parentMap.get(key) || { addr: parentAddr, prefix: 48, indexes: [] };
     group.indexes.push(index);
     parentMap.set(key, group);
   });
@@ -375,15 +373,15 @@ const promoteV6To32 = (entries) => {
 
   v6.forEach((entry) => {
     if (entry.prefix === 64) {
-      // Calculate base network address for /32
+      // Calculate base network address for /48
       const bytes = entry.addr.toByteArray();
-      for (let i = 4; i < 16; i += 1) {
+      for (let i = 6; i < 16; i += 1) {
         bytes[i] = 0;
       }
       const parentAddr = ipaddr.fromByteArray(bytes);
-      const parentKey = `${parentAddr.toString()}/32`;
+      const parentKey = `${parentAddr.toString()}/48`;
       if (promotedParents.has(parentKey)) {
-        // covered by promoted /32
+        // covered by promoted /48
         return;
       }
     }
@@ -449,8 +447,8 @@ const processIpEntries = (ipEntries) => {
   const normalizedV4 = normalizeRanges(promotedV4);
   const normalizedV6 = normalizeRanges(promotedV6);
 
-  const level2V4 = promoteV4To12(normalizedV4);
-  const level2V6 = promoteV6To32(normalizedV6);
+  const level2V4 = promoteV4To16(normalizedV4);
+  const level2V6 = promoteV6To48(normalizedV6);
 
   const finalV4 = normalizeRanges(level2V4);
   const finalV6 = normalizeRanges(level2V6);

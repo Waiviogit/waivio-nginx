@@ -2,7 +2,7 @@ const crypto = require('crypto');
 
 const COOKIE_NAME = 'hc_ok';
 const COOKIE_VERSION = 1;
-const DEFAULT_TTL_HOURS = 8;
+const DEFAULT_TTL_HOURS = 24 * 7;
 
 const getSecret = () => {
   const secret = process.env.HCAPTCHA_COOKIE_SECRET;
