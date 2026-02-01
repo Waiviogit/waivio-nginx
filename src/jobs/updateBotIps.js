@@ -32,7 +32,7 @@ const SOFT_V4_MAX_PREFIX = 24; // we always aggregate single IPv4 IPs up to /24
 const SOFT_V6_MAX_PREFIX = 64; // we always aggregate single IPv6 IPs up to /64
 
 // Second-level aggregation thresholds (how many /24 or /64 are needed to promote)
-const V4_SUPER_PROMO_THRESHOLD = parseInt(process.env.BOT_V4_SUPER_PROMO_THRESHOLD, 10) || 20;
+const V4_SUPER_PROMO_THRESHOLD = parseInt(process.env.BOT_V4_SUPER_PROMO_THRESHOLD, 10) || 10;
 const V6_SUPER_PROMO_THRESHOLD = parseInt(process.env.BOT_V6_SUPER_PROMO_THRESHOLD, 10) || 30;
 
 const getCurrentDateString = () => {
@@ -399,6 +399,135 @@ const promoteV6To48 = (entries) => {
   return [...resultV6, ...others];
 };
 
+// Level 3: promote /16 -> /12 (IPv4), /48 -> /32 (IPv6), same thresholds
+const promoteV4To12 = (entries) => {
+  if (!entries.length) return [];
+
+  const v4 = [];
+  const others = [];
+
+  entries.forEach((entry) => {
+    if (entry.addr.kind() === 'ipv4') {
+      v4.push(entry);
+    } else {
+      others.push(entry);
+    }
+  });
+
+  const parentMap = new Map();
+
+  v4.forEach((entry, index) => {
+    if (entry.prefix !== 16) return;
+
+    const bytes = entry.addr.toByteArray();
+    bytes[1] = Math.floor(bytes[1] / 16) * 16;
+    bytes[2] = 0;
+    bytes[3] = 0;
+    const parentAddr = ipaddr.fromByteArray(bytes);
+    const key = `${parentAddr.toString()}/12`;
+
+    const group = parentMap.get(key) || { addr: parentAddr, prefix: 12, indexes: [] };
+    group.indexes.push(index);
+    parentMap.set(key, group);
+  });
+
+  const promotedParents = new Map();
+
+  parentMap.forEach((group, key) => {
+    if (group.indexes.length >= V4_SUPER_PROMO_THRESHOLD) {
+      promotedParents.set(key, { addr: group.addr, prefix: group.prefix });
+    }
+  });
+
+  const resultV4 = [];
+
+  v4.forEach((entry) => {
+    if (entry.prefix === 16) {
+      const bytes = entry.addr.toByteArray();
+      bytes[1] = Math.floor(bytes[1] / 16) * 16;
+      bytes[2] = 0;
+      bytes[3] = 0;
+      const parentAddr = ipaddr.fromByteArray(bytes);
+      const parentKey = `${parentAddr.toString()}/12`;
+      if (promotedParents.has(parentKey)) {
+        return;
+      }
+    }
+
+    resultV4.push(entry);
+  });
+
+  promotedParents.forEach((entry) => {
+    resultV4.push(entry);
+  });
+
+  return [...resultV4, ...others];
+};
+
+const promoteV6To32 = (entries) => {
+  if (!entries.length) return [];
+
+  const v6 = [];
+  const others = [];
+
+  entries.forEach((entry) => {
+    if (entry.addr.kind() === 'ipv6') {
+      v6.push(entry);
+    } else {
+      others.push(entry);
+    }
+  });
+
+  const parentMap = new Map();
+
+  v6.forEach((entry, index) => {
+    if (entry.prefix !== 48) return;
+
+    const bytes = entry.addr.toByteArray();
+    for (let i = 4; i < 16; i += 1) {
+      bytes[i] = 0;
+    }
+    const parentAddr = ipaddr.fromByteArray(bytes);
+    const key = `${parentAddr.toString()}/32`;
+
+    const group = parentMap.get(key) || { addr: parentAddr, prefix: 32, indexes: [] };
+    group.indexes.push(index);
+    parentMap.set(key, group);
+  });
+
+  const promotedParents = new Map();
+
+  parentMap.forEach((group, key) => {
+    if (group.indexes.length >= V6_SUPER_PROMO_THRESHOLD) {
+      promotedParents.set(key, { addr: group.addr, prefix: group.prefix });
+    }
+  });
+
+  const resultV6 = [];
+
+  v6.forEach((entry) => {
+    if (entry.prefix === 48) {
+      const bytes = entry.addr.toByteArray();
+      for (let i = 4; i < 16; i += 1) {
+        bytes[i] = 0;
+      }
+      const parentAddr = ipaddr.fromByteArray(bytes);
+      const parentKey = `${parentAddr.toString()}/32`;
+      if (promotedParents.has(parentKey)) {
+        return;
+      }
+    }
+
+    resultV6.push(entry);
+  });
+
+  promotedParents.forEach((entry) => {
+    resultV6.push(entry);
+  });
+
+  return [...resultV6, ...others];
+};
+
 const normalizeRanges = (entries) => {
   if (!entries.length) return [];
 
@@ -453,8 +582,14 @@ const processIpEntries = (ipEntries) => {
   const level2V4 = promoteV4To16(normalizedV4);
   const level2V6 = promoteV6To48(normalizedV6);
 
-  const finalV4 = normalizeRanges(level2V4);
-  const finalV6 = normalizeRanges(level2V6);
+  const normalized2V4 = normalizeRanges(level2V4);
+  const normalized2V6 = normalizeRanges(level2V6);
+
+  const level3V4 = promoteV4To12(normalized2V4);
+  const level3V6 = promoteV6To32(normalized2V6);
+
+  const finalV4 = normalizeRanges(level3V4);
+  const finalV6 = normalizeRanges(level3V6);
 
   // Hard tier is not used yet (soft-only), so just combine soft ranges
   const finalRanges = [...finalV4, ...finalV6];
