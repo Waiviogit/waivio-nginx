@@ -9,6 +9,8 @@ const execPromise = util.promisify(exec);
 
 const BOT_IPS_MAP_PATH = process.env.BOT_IPS_MAP_PATH || '/etc/nginx/bot_ips.map';
 const BOT_IPS_TEMP_PATH = process.env.BOT_IPS_TEMP_PATH || '/tmp/bot_ips.map.tmp';
+const BOT_IPS_OVERFLOW_MAP_PATH = process.env.BOT_IPS_OVERFLOW_MAP_PATH || '/etc/nginx/bot_ips_overflow.map';
+const BOT_IPS_OVERFLOW_TEMP_PATH = process.env.BOT_IPS_OVERFLOW_TEMP_PATH || '/tmp/bot_ips_overflow.map.tmp';
 const BOT_IPS_MAP_MAX_LINES = parseInt(process.env.BOT_IPS_MAP_MAX_LINES, 10) || 200000;
 const REDIS_KEY = process.env.REDIS_BOT_IPS_KEY || 'api_bot_detection';
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
@@ -486,30 +488,39 @@ const updateBotIpsMap = async () => {
       return;
     }
 
-    // Собираем сырые значения для агрегации:
-    //  - предыдущие диапазоны из bot_ips.map (ключи вида IP или CIDR)
-    //  - новые IP/диапазоны из Redis
+    // Collect raw entries for aggregation: main map, overflow map, and fresh IPs from Redis
     const allRawEntries = [];
 
-    try {
-      const oldContent = await fs.readFile(BOT_IPS_MAP_PATH, 'utf8');
-      oldContent
+    const parseMapContent = (content) => {
+      content
         .split('\n')
         .map((l) => l.trim())
         .forEach((line) => {
           if (!line || line.startsWith('default')) return;
           const [key] = line.split(/\s+/);
-          if (key) {
-            allRawEntries.push(key);
-          }
+          if (key) allRawEntries.push(key);
         });
+    };
+
+    try {
+      const oldContent = await fs.readFile(BOT_IPS_MAP_PATH, 'utf8');
+      parseMapContent(oldContent);
     } catch (e) {
       if (e.code !== 'ENOENT') {
         console.error('Failed to read existing bot_ips.map:', e.message);
       }
     }
 
-    // Добавляем свежие IP из Redis
+    try {
+      const overflowContent = await fs.readFile(BOT_IPS_OVERFLOW_MAP_PATH, 'utf8');
+      parseMapContent(overflowContent);
+    } catch (e) {
+      if (e.code !== 'ENOENT') {
+        console.error('Failed to read existing bot_ips_overflow.map:', e.message);
+      }
+    }
+
+    // Add fresh IPs from Redis
     allRawEntries.push(...ips);
 
     // Filter out whitelisted IPs
@@ -524,47 +535,63 @@ const updateBotIpsMap = async () => {
       return !isWhitelisted(rangeStr);
     });
 
-    // Cap file size at BOT_IPS_MAP_MAX_LINES entries
+    // Split: main file up to BOT_IPS_MAP_MAX_LINES, rest goes to overflow (re-aggregated)
     const totalRanges = finalRanges.length;
+    let mainRanges = finalRanges;
+    let overflowRanges = [];
+
     if (totalRanges > BOT_IPS_MAP_MAX_LINES) {
-      finalRanges = finalRanges.slice(0, BOT_IPS_MAP_MAX_LINES);
-      console.log(`Bot IPs map capped at ${BOT_IPS_MAP_MAX_LINES} lines (had ${totalRanges} ranges)`);
+      mainRanges = finalRanges.slice(0, BOT_IPS_MAP_MAX_LINES);
+      const overflowRaw = finalRanges
+        .slice(BOT_IPS_MAP_MAX_LINES)
+        .map((r) => renderRange(r));
+      overflowRanges = processIpEntries(overflowRaw);
+      overflowRanges = overflowRanges.filter((range) => {
+        const rangeStr = renderRange(range);
+        return !isWhitelisted(rangeStr);
+      });
+      console.log(
+        `Bot IPs split: main ${mainRanges.length}, overflow ${overflowRanges.length} (from ${totalRanges} total)`,
+      );
     }
 
-    // Пересобираем файл: агрегированные диапазоны (default уже определен в hcaptcha.conf)
-    let content = '';
-    finalRanges
+    const buildMapContent = (ranges) => ranges
       .map((range) => renderRange(range))
       .sort()
-      .forEach((key) => {
-        content += `${key} 1;\n`;
-      });
+      .map((key) => `${key} 1;\n`)
+      .join('');
 
-    // Write to temp file first for validation
-    await fs.writeFile(BOT_IPS_TEMP_PATH, content, 'utf8');
+    const mainContent = buildMapContent(mainRanges);
+    const overflowContent = buildMapContent(overflowRanges);
+
+    await fs.writeFile(BOT_IPS_TEMP_PATH, mainContent, 'utf8');
+    await fs.writeFile(BOT_IPS_OVERFLOW_TEMP_PATH, overflowContent, 'utf8');
 
     try {
       await execPromise('nginx -t');
     } catch (error) {
       console.error('Nginx config test failed, skipping update:', error.message);
       await fs.unlink(BOT_IPS_TEMP_PATH).catch(() => {});
+      await fs.unlink(BOT_IPS_OVERFLOW_TEMP_PATH).catch(() => {});
       return;
     }
 
-    // Try atomic rename first (preferred method)
-    try {
-      await fs.rename(BOT_IPS_TEMP_PATH, BOT_IPS_MAP_PATH);
-    } catch (renameError) {
-      // If rename fails with EBUSY, nginx has the file open
-      // Write directly to target file (works even if file is open for reading)
-      if (renameError.code === 'EBUSY') {
-        await fs.writeFile(BOT_IPS_MAP_PATH, content, 'utf8');
-        await fs.unlink(BOT_IPS_TEMP_PATH).catch(() => {});
-      } else {
-        await fs.unlink(BOT_IPS_TEMP_PATH).catch(() => {});
-        throw renameError;
+    const writeOrRename = async (tempPath, targetPath, content) => {
+      try {
+        await fs.rename(tempPath, targetPath);
+      } catch (renameError) {
+        if (renameError.code === 'EBUSY') {
+          await fs.writeFile(targetPath, content, 'utf8');
+          await fs.unlink(tempPath).catch(() => {});
+        } else {
+          await fs.unlink(tempPath).catch(() => {});
+          throw renameError;
+        }
       }
-    }
+    };
+
+    await writeOrRename(BOT_IPS_TEMP_PATH, BOT_IPS_MAP_PATH, mainContent);
+    await writeOrRename(BOT_IPS_OVERFLOW_TEMP_PATH, BOT_IPS_OVERFLOW_MAP_PATH, overflowContent);
 
     // Single reload after file update to pick up new content
     try {
@@ -574,7 +601,9 @@ const updateBotIpsMap = async () => {
       return;
     }
 
-    console.log(`Bot IPs map updated: ${finalRanges.length} ranges (from ${ips.length} entries)`);
+    console.log(
+      `Bot IPs map updated: main ${mainRanges.length}, overflow ${overflowRanges.length} (from ${ips.length} entries)`,
+    );
     try {
       await client.del(redisKey);
       console.log(`Removed processed IPs from Redis key: ${redisKey}`);

@@ -14,6 +14,7 @@ services:
       - ./nginx/production/sites-available:/etc/nginx/sites-available
       - ./nginx/production/http.d:/etc/nginx/http.d
       - ./nginx/production/bot_ips.map:/etc/nginx/bot_ips.map
+      - ./nginx/production/bot_ips_overflow.map:/etc/nginx/bot_ips_overflow.map
       - ./nginx/production/snippets:/etc/nginx/snippets
     extra_hosts:
      - 'host.docker.internal:host-gateway'
