@@ -595,9 +595,5 @@ exports.updateBotIpsJob = new CronJob(
   false,
   null,
   null,
-  false,
+  true,
 );
-
-// if (process.env.NODE_ENV !== 'test') {
-//    updateBotIpsMap().catch(console.error);
-// }
