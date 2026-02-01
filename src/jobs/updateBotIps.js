@@ -14,7 +14,7 @@ const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
 const REDIS_PORT = process.env.REDIS_PORT || 6379;
 const REDIS_DB = process.env.REDIS_DB || 11;
 const { REDIS_PASSWORD } = process.env;
-const UPDATE_INTERVAL = process.env.BOT_IPS_UPDATE_INTERVAL || '*/5 * * * *';
+const UPDATE_INTERVAL = process.env.BOT_IPS_UPDATE_INTERVAL || '*/10 * * * *';
 
 // Whitelisted IPs that should never be blocked
 const WHITELISTED_IPS = [
