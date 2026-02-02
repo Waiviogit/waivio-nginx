@@ -1,4 +1,5 @@
 const axios = require('axios');
+const { isbot } = require('isbot');
 const { createCookie, validateCookie, extractCookie } = require('../common/helpers/captchaCookie');
 
 const { HCAPTCHA_SECRET } = process.env;
@@ -99,7 +100,7 @@ const verifyCaptcha = async (request, reply) => {
     });
 
     reply.setCookie(cookie.name, cookie.value, cookie.options);
-    
+
     // Also set via header directly as fallback to ensure cookie is set
     const cookieString = `${cookie.name}=${cookie.value}; Path=${cookie.options.Path}; Max-Age=${cookie.options.MaxAge}; HttpOnly; Secure; SameSite=${cookie.options.SameSite}`;
     reply.header('Set-Cookie', cookieString);
@@ -125,6 +126,11 @@ const checkCaptcha = async (request, reply) => {
   const cookieHeader = request.headers.cookie || '';
 
   if (isBotIp !== '1') {
+    return reply.code(204).send();
+  }
+
+  const botUa = isbot(userAgent);
+  if (botUa) {
     return reply.code(204).send();
   }
 
