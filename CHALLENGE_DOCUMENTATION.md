@@ -11,8 +11,9 @@ The challenge system protects the application from bot traffic by requiring user
 1. **Nginx** - Frontend proxy that checks bot IPs and routes requests
 2. **Node.js Backend** - Handles challenge page, verification, and cookie validation
 3. **hCaptcha** - Third-party CAPTCHA service
-4. **Redis** - Stores bot IP addresses detected by the API
+4. **Redis** - Stores bot IP addresses detected by the API and verified IP whitelist
 5. **Bot IP Detection Job** - Periodically updates bot IP list from Redis
+6. **IP Whitelist Job** - Daily updates whitelist map from verified IPs in Redis
 
 ## Flow Diagram
 
@@ -20,6 +21,8 @@ The challenge system protects the application from bot traffic by requiring user
 User Request
     ↓
 Nginx checks if IP is bot IP (geo $is_bot_ip)
+    ↓
+Checks whitelist.map first → If whitelisted → Allow access
     ↓
 If bot IP → auth_request /_captcha_check
     ↓
@@ -31,9 +34,11 @@ User completes hCaptcha → POST /captcha/verify
     ↓
 Backend verifies with hCaptcha API
     ↓
-Success → Set cookie → Redirect to original URL
+Success → Add IP to Redis whitelist → Set cookie → Redirect
     ↓
-Next request → Cookie validated → Access granted
+Daily job (03:00) → Generate whitelist.map → Clear Redis key
+    ↓
+Next request → IP whitelisted → Access granted (no cookie needed)
 ```
 
 ## Bot IP Detection
@@ -59,12 +64,53 @@ The system periodically fetches bot IP addresses from Redis and generates an ngi
    - Multiple `/64` IPv6 subnets → aggregated to `/32` if threshold met (default: 30 subnets)
 
 **Output Format:**
-The job generates `/etc/nginx/bot_ips.map` file in nginx map format:
+The job generates `/etc/nginx/maps/bot_ips.map` file in nginx map format:
 ```
 192.168.1.0/24 1;
 10.0.0.0/12 1;
 2001:db8::/64 1;
 ```
+
+## IP Whitelist System
+
+### Source: `src/jobs/updateWhitelist.js` and `src/controllers/captchaController.js`
+
+The system maintains a whitelist of IPs that have successfully verified captcha. These IPs bypass bot detection entirely.
+
+**How it works:**
+
+1. **On Captcha Verification:**
+   - When user successfully completes hCaptcha verification, their IP is added to Redis SET `captcha_whitelist`
+   - IP is extracted from `X-Real-IP` header or `request.ip`
+
+2. **Daily Whitelist Update:**
+   - Job runs daily at 03:00 (configurable)
+   - Reads all IPs from Redis SET `captcha_whitelist`
+   - Generates `/etc/nginx/maps/whitelist.map` file
+   - Limits to 200,000 IPs (configurable via `WHITELIST_MAP_MAX_LINES`)
+   - Removes written IPs from Redis after successful update
+   - If more than 200,000 IPs exist, remaining IPs stay in Redis for next cycle
+
+**Configuration:**
+- `REDIS_WHITELIST_KEY` - Redis key for whitelist (default: `captcha_whitelist`)
+- `WHITELIST_MAP_PATH` - Output path for nginx map file (default: `/etc/nginx/maps/whitelist.map`)
+- `WHITELIST_MAP_MAX_LINES` - Maximum IPs in map file (default: `200000`)
+- `WHITELIST_UPDATE_INTERVAL` - Cron schedule (default: `0 3 * * *` - daily at 03:00)
+
+**Output Format:**
+The job generates `/etc/nginx/maps/whitelist.map` file in nginx geo format:
+```
+200.123.1.1 0;
+192.168.0.5 0;
+10.0.0.1 0;
+```
+
+**Redis Client:**
+- Shared Redis client module: `src/common/helpers/redisClient.js`
+- Used by both bot IP detection and whitelist jobs, and captcha controller
+- Handles connection pooling, error recovery, and reconnection
+- Singleton pattern ensures single Redis connection per process
+- Automatically reconnects on connection loss
 
 ## Nginx Configuration
 
@@ -73,12 +119,22 @@ The job generates `/etc/nginx/bot_ips.map` file in nginx map format:
 ```nginx
 geo $is_bot_ip {
     default 0;
-    include /etc/nginx/bot_ips.map;
+    include /etc/nginx/maps/whitelist.map;
+    include /etc/nginx/maps/bot_ips.map;
+    include /etc/nginx/maps/bot_ips_overflow.map;
 }
 ```
 
-- `$is_bot_ip = 1` if IP is in bot list
-- `$is_bot_ip = 0` if IP is not in bot list
+**Evaluation Order:**
+1. Checks `whitelist.map` first - if IP matches, returns `0` (not bot)
+2. Checks `bot_ips.map` - if IP matches, returns `1` (bot)
+3. Checks `bot_ips_overflow.map` - if IP matches, returns `1` (bot)
+4. Default: `0` (not bot)
+
+- `$is_bot_ip = 1` if IP is in bot list (and not whitelisted)
+- `$is_bot_ip = 0` if IP is whitelisted or not in bot list
+
+**Important:** Whitelist entries take precedence over bot IP entries. If an IP is in both whitelist and bot list, it will be treated as whitelisted (not bot).
 
 ### Server Configuration: `nginx/*/snippets/waivio-server.conf`
 
@@ -207,9 +263,16 @@ location / {
    ```
 
 3. **On Success:**
+   - Add IP to Redis whitelist SET (`captcha_whitelist`)
    - Create secure cookie with IP and User-Agent hash
    - Set cookie via `reply.setCookie()` and `Set-Cookie` header
    - Redirect to validated `rd` URL
+
+**Redis Whitelist Addition:**
+- IP is added to Redis SET using `SADD` command
+- Uses shared Redis client from `src/common/helpers/redisClient.js`
+- Errors are logged but don't fail verification
+- IP will be included in next daily whitelist map update
 
 4. **On Failure:**
    - Redirect back to `/challenge?rd=...&error=verification_failed`
@@ -310,13 +373,17 @@ Cookie value format: `{payload}.{signature}`
 
 - `HCAPTCHA_PEPPER` - Pepper for hashing IP/UA (defaults to `HCAPTCHA_COOKIE_SECRET`)
 - `NODE_PORT` - Backend server port (default: `10020`)
-- `REDIS_HOST` - Redis host for bot IPs (default: `localhost`)
+- `REDIS_HOST` - Redis host for bot IPs and whitelist (default: `localhost`)
 - `REDIS_PORT` - Redis port (default: `6379`)
 - `REDIS_DB` - Redis database (default: `11`)
 - `REDIS_PASSWORD` - Redis password
 - `REDIS_BOT_IPS_KEY` - Redis key for bot IPs (default: `api_bot_detection`)
-- `BOT_IPS_MAP_PATH` - Path for nginx bot_ips.map file (default: `/etc/nginx/bot_ips.map`)
-- `BOT_IPS_UPDATE_INTERVAL` - Cron schedule (default: `*/5 * * * *`)
+- `BOT_IPS_MAP_PATH` - Path for nginx bot_ips.map file (default: `/etc/nginx/maps/bot_ips.map`)
+- `BOT_IPS_UPDATE_INTERVAL` - Cron schedule (default: `*/10 * * * *`)
+- `REDIS_WHITELIST_KEY` - Redis key for verified IP whitelist (default: `captcha_whitelist`)
+- `WHITELIST_MAP_PATH` - Path for nginx whitelist.map file (default: `/etc/nginx/maps/whitelist.map`)
+- `WHITELIST_MAP_MAX_LINES` - Maximum IPs in whitelist map (default: `200000`)
+- `WHITELIST_UPDATE_INTERVAL` - Cron schedule for whitelist update (default: `0 3 * * *`)
 
 ## Rate Limiting
 
@@ -351,19 +418,53 @@ All failures return `401` status, triggering nginx redirect to challenge page.
 
 1. **Test Bot IP Detection:**
    - Add test IP to Redis: `SADD api_bot_detection "1.2.3.4"`
-   - Wait for job to update map file (max 5 minutes)
+   - Wait for job to update map file (max 10 minutes)
    - Access site from that IP
    - Should see challenge page
 
-2. **Test Cookie Validation:**
+2. **Test Whitelist:**
+   - Complete challenge from bot IP
+   - Verify IP added to Redis: `SMEMBERS captcha_whitelist`
+   - Wait for daily job or manually trigger whitelist update
+   - Check `/etc/nginx/maps/whitelist.map` contains IP
+   - Access site again - should bypass challenge (no cookie needed)
+   - Verify IP removed from Redis after job runs
+
+3. **Test Cookie Validation:**
    - Complete challenge
    - Check cookie `hc_ok` is set
    - Verify cookie persists across requests
    - Test IP mismatch (change IP, cookie should be invalid)
 
-3. **Test Error Handling:**
+4. **Test Error Handling:**
    - Submit invalid token
    - Should redirect to challenge with error message
+
+5. **Test Whitelist Precedence:**
+   - Add IP to both bot list and whitelist
+   - IP should be treated as whitelisted (no challenge)
+
+## Docker Configuration
+
+### Maps Directory Structure
+
+All nginx map files are stored in `/etc/nginx/maps/` directory:
+
+```
+/etc/nginx/maps/
+├── whitelist.map          # Verified IPs (generated daily)
+├── bot_ips.map            # Bot IPs (generated every 10 minutes)
+└── bot_ips_overflow.map   # Overflow bot IPs (if >200k entries)
+```
+
+**Docker Volumes:**
+- Maps directory mounted as: `./nginx/{production,staging}/maps:/etc/nginx/maps`
+- Single volume mount instead of individual file mounts
+- Ensures all map files are in same location
+
+**Dockerfile:**
+- Creates `/etc/nginx/maps` directory during build
+- Ensures directory exists before nginx starts
 
 ## Troubleshooting
 
@@ -377,7 +478,17 @@ All failures return `401` status, triggering nginx redirect to challenge page.
 
 - Verify `HCAPTCHA_SITE_KEY` is set
 - Check nginx `geo $is_bot_ip` configuration
-- Verify bot IP is in `/etc/nginx/bot_ips.map`
+- Verify bot IP is in `/etc/nginx/maps/bot_ips.map`
+- Check if IP is whitelisted in `/etc/nginx/maps/whitelist.map` (whitelist takes precedence)
+
+### Whitelist Not Working
+
+- Verify Redis connection is working
+- Check if IP was added to Redis SET `captcha_whitelist` after verification
+- Wait for daily job to run (03:00) or check job logs
+- Verify `/etc/nginx/maps/whitelist.map` file exists and contains IP
+- Check nginx config includes whitelist.map before bot_ips.map
+- Verify whitelist.map file format: `IP 0;` (not `IP 1;`)
 
 ### Verification Always Fails
 
