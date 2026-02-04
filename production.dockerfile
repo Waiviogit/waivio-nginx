@@ -18,8 +18,8 @@ COPY ./nginx/production/sites-available/* /etc/nginx/sites-available/
 
 COPY ./nginx/production/http.d/* /etc/nginx/http.d/
 
-# Create directory for enabled sites and snippets
-RUN mkdir /etc/nginx/sites-enabled/ && mkdir /etc/nginx/snippets
+# Create directory for enabled sites, snippets, and maps
+RUN mkdir /etc/nginx/sites-enabled/ && mkdir /etc/nginx/snippets && mkdir -p /etc/nginx/maps
 
 # Create symlinks for enabled sites
 RUN ln -s /etc/nginx/sites-available/* /etc/nginx/sites-enabled/

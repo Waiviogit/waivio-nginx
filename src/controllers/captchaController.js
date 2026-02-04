@@ -1,9 +1,11 @@
 const axios = require('axios');
 const { isbot } = require('isbot');
 const { createCookie, validateCookie, extractCookie } = require('../common/helpers/captchaCookie');
+const { getRedisClient } = require('../common/helpers/redisClient');
 
 const { HCAPTCHA_SECRET } = process.env;
 const HCAPTCHA_VERIFY_URL = 'https://hcaptcha.com/siteverify';
+const REDIS_WHITELIST_KEY = process.env.REDIS_WHITELIST_KEY || 'captcha_whitelist';
 
 // Валидировать URL для редиректа (защита от open redirect)
 const validateRedirectUrl = (url, host) => {
@@ -98,6 +100,21 @@ const verifyCaptcha = async (request, reply) => {
       event: 'challenge_passed',
       ip,
     });
+
+    // Add IP to Redis whitelist
+    if (ip) {
+      try {
+        const client = await getRedisClient();
+        await client.sAdd(REDIS_WHITELIST_KEY, ip);
+      } catch (error) {
+        // Log but don't fail verification if Redis fails
+        request.log.error({
+          event: 'redis_whitelist_error',
+          error: error.message,
+          ip,
+        });
+      }
+    }
 
     reply.setCookie(cookie.name, cookie.value, cookie.options);
 
