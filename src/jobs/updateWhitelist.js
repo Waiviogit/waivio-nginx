@@ -7,7 +7,9 @@ const { getRedisClient } = require('../common/helpers/redisClient');
 const execPromise = util.promisify(exec);
 
 const WHITELIST_MAP_PATH = process.env.WHITELIST_MAP_PATH || '/etc/nginx/maps/whitelist.map';
-const WHITELIST_TEMP_PATH = process.env.WHITELIST_TEMP_PATH || '/tmp/whitelist.map.tmp';
+// Use temp file in the same directory to avoid cross-device rename issues (EXDEV)
+const WHITELIST_TEMP_PATH = process.env.WHITELIST_TEMP_PATH
+  || '/etc/nginx/maps/whitelist.map.tmp';
 const REDIS_WHITELIST_KEY = process.env.REDIS_WHITELIST_KEY || 'captcha_whitelist';
 const UPDATE_INTERVAL = process.env.WHITELIST_UPDATE_INTERVAL || '0 3 * * *';
 const WHITELIST_MAP_MAX_LINES = parseInt(process.env.WHITELIST_MAP_MAX_LINES, 10) || 200000;
@@ -66,7 +68,8 @@ const updateWhitelistMap = async () => {
     try {
       await fs.rename(WHITELIST_TEMP_PATH, WHITELIST_MAP_PATH);
     } catch (renameError) {
-      if (renameError.code === 'EBUSY') {
+      // Fallback for busy file or cross-device rename (EXDEV)
+      if (renameError.code === 'EBUSY' || renameError.code === 'EXDEV') {
         await fs.writeFile(WHITELIST_MAP_PATH, mapContent, 'utf8');
         await fs.unlink(WHITELIST_TEMP_PATH).catch(() => {});
       } else {
@@ -92,7 +95,7 @@ const updateWhitelistMap = async () => {
       if (ips.length > 0) {
         await client.sRem(REDIS_WHITELIST_KEY, ips);
         console.log(`Removed ${ips.length} IPs from Redis whitelist key: ${REDIS_WHITELIST_KEY}`);
-        
+
         // Check if key is now empty and delete it
         const remainingCount = await client.sCard(REDIS_WHITELIST_KEY);
         if (remainingCount === 0) {

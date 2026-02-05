@@ -765,5 +765,5 @@ exports.updateBotIpsJob = new CronJob(
   false,
   null,
   null,
-  true,
+  false,
 );
