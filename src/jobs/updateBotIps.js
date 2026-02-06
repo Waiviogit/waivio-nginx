@@ -8,9 +8,9 @@ const ipaddr = require('ipaddr.js');
 const execPromise = util.promisify(exec);
 
 const BOT_IPS_MAP_PATH = process.env.BOT_IPS_MAP_PATH || '/etc/nginx/maps/bot_ips.map';
-const BOT_IPS_TEMP_PATH = process.env.BOT_IPS_TEMP_PATH || '/tmp/bot_ips.map.tmp';
+const BOT_IPS_TEMP_PATH = process.env.BOT_IPS_TEMP_PATH || '/etc/nginx/maps/bot_ips.map.tmp';
 const BOT_IPS_OVERFLOW_MAP_PATH = process.env.BOT_IPS_OVERFLOW_MAP_PATH || '/etc/nginx/maps/bot_ips_overflow.map';
-const BOT_IPS_OVERFLOW_TEMP_PATH = process.env.BOT_IPS_OVERFLOW_TEMP_PATH || '/tmp/bot_ips_overflow.map.tmp';
+const BOT_IPS_OVERFLOW_TEMP_PATH = process.env.BOT_IPS_OVERFLOW_TEMP_PATH || '/etc/nginx/maps/bot_ips_overflow.map.tmp';
 const BOT_IPS_MAP_MAX_LINES = parseInt(process.env.BOT_IPS_MAP_MAX_LINES, 10) || 200000;
 const REDIS_KEY = process.env.REDIS_BOT_IPS_KEY || 'api_bot_detection';
 const REDIS_HOST = process.env.REDIS_HOST || 'localhost';
@@ -765,5 +765,5 @@ exports.updateBotIpsJob = new CronJob(
   false,
   null,
   null,
-  false,
+  true,
 );
