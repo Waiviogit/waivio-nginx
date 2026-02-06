@@ -85,11 +85,11 @@ The system maintains a whitelist of IPs that have successfully verified captcha.
 
 2. **Daily Whitelist Update:**
    - Job runs daily at 03:00 (configurable)
-   - Reads all IPs from Redis SET `captcha_whitelist`
-   - Generates `/etc/nginx/maps/whitelist.map` file
-   - Limits to 200,000 IPs (configurable via `WHITELIST_MAP_MAX_LINES`)
-   - Removes written IPs from Redis after successful update
-   - If more than 200,000 IPs exist, remaining IPs stay in Redis for next cycle
+   - Reads new IPs from Redis SET `captcha_whitelist` (delta since last run)
+   - Reads existing IPs from `/etc/nginx/maps/whitelist.map` (old whitelist)
+   - Merges old + new IPs, de-duplicates, sorts, and applies 200,000 line cap
+   - Writes merged list back to `/etc/nginx/maps/whitelist.map`
+   - Clears Redis key after successful merge (`DEL captcha_whitelist`)
 
 **Configuration:**
 - `REDIS_WHITELIST_KEY` - Redis key for whitelist (default: `captcha_whitelist`)

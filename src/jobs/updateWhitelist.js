@@ -18,27 +18,43 @@ const updateWhitelistMap = async () => {
   try {
     const client = await getRedisClient();
 
-    // Get all IPs from Redis SET
-    const allIps = await client.sMembers(REDIS_WHITELIST_KEY);
+    // Get new IPs from Redis SET (delta since last run)
+    const redisIps = await client.sMembers(REDIS_WHITELIST_KEY);
 
-    if (!allIps || allIps.length === 0) {
-      console.log('No IPs in whitelist, skipping map update');
+    if (!redisIps || redisIps.length === 0) {
+      console.log('No new IPs in Redis whitelist, skipping map update');
       return;
     }
 
-    // Filter and sort IPs
-    const validIps = allIps
-      .filter((ip) => ip && ip.trim())
-      .sort();
+    // Read existing whitelist map file (old IPs that should stay)
+    let existingIps = [];
+    try {
+      const existingContent = await fs.readFile(WHITELIST_MAP_PATH, 'utf8');
+      existingIps = existingContent
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith('#'))
+        .map((line) => line.split(/\s+/)[0]);
+    } catch (readError) {
+      if (readError.code !== 'ENOENT') {
+        console.error('Failed to read existing whitelist map:', readError.message);
+      }
+    }
 
-    // Limit to max lines
-    const ips = validIps.slice(0, WHITELIST_MAP_MAX_LINES);
-    const totalIps = validIps.length;
+    // Merge old + new IPs, deduplicate and sort
+    const mergedSet = new Set([
+      ...existingIps,
+      ...redisIps.filter((ip) => ip && ip.trim()),
+    ]);
+    const mergedIps = Array.from(mergedSet).sort();
+
+    const totalIps = mergedIps.length;
+    const ips = mergedIps.slice(0, WHITELIST_MAP_MAX_LINES);
     const writtenIps = ips.length;
 
     if (totalIps > WHITELIST_MAP_MAX_LINES) {
       console.warn(
-        `Whitelist has ${totalIps} IPs, limiting to ${WHITELIST_MAP_MAX_LINES} entries`,
+        `Whitelist has ${totalIps} IPs (old + new), limiting to ${WHITELIST_MAP_MAX_LINES} entries`,
       );
     }
 
@@ -87,26 +103,20 @@ const updateWhitelistMap = async () => {
     }
 
     console.log(
-      `Whitelist map updated: ${writtenIps} IPs written to ${WHITELIST_MAP_PATH}${totalIps > writtenIps ? ` (${totalIps - writtenIps} IPs truncated due to limit)` : ''}`,
+      `Whitelist map updated: ${writtenIps} IPs written to ${WHITELIST_MAP_PATH}${
+        totalIps > writtenIps ? ` (${totalIps - writtenIps} IPs truncated due to limit)` : ''
+      }`,
     );
 
-    // Remove written IPs from Redis after successful update
+    // Clear Redis key after merging new IPs into whitelist map file
     try {
-      if (ips.length > 0) {
-        await client.sRem(REDIS_WHITELIST_KEY, ips);
-        console.log(`Removed ${ips.length} IPs from Redis whitelist key: ${REDIS_WHITELIST_KEY}`);
-
-        // Check if key is now empty and delete it
-        const remainingCount = await client.sCard(REDIS_WHITELIST_KEY);
-        if (remainingCount === 0) {
-          await client.del(REDIS_WHITELIST_KEY);
-          console.log(`Cleared empty Redis whitelist key: ${REDIS_WHITELIST_KEY}`);
-        } else if (totalIps > writtenIps) {
-          console.log(`${remainingCount} IPs remaining in Redis for next update cycle`);
-        }
-      }
+      await client.del(REDIS_WHITELIST_KEY);
+      console.log(`Cleared Redis whitelist key: ${REDIS_WHITELIST_KEY}`);
     } catch (delError) {
-      console.error(`Failed to remove IPs from Redis key ${REDIS_WHITELIST_KEY}:`, delError.message);
+      console.error(
+        `Failed to delete Redis whitelist key ${REDIS_WHITELIST_KEY}:`,
+        delError.message,
+      );
     }
   } catch (error) {
     console.error('Error updating whitelist map:', error.message);

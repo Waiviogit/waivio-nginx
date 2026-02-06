@@ -19,6 +19,7 @@ async function routes(fastify, options) {
   fastify.route({
     method: 'GET',
     url: '/challenge',
+    logLevel: 'silent',
     handler: async (request, reply) => {
       reply.type('text/html');
       return challengeHtml;
