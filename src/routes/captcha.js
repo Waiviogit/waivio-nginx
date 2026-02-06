@@ -4,9 +4,7 @@ async function routes(fastify, options) {
   fastify.route({
     method: ['GET', 'POST'],
     url: '/_captcha_check',
-    config: {
-      disableRequestLogging: true,
-    },
+    logLevel: 'silent',
     handler: captchaController.checkCaptcha,
   });
 
