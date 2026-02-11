@@ -2,7 +2,14 @@
 
 ## Overview
 
-The challenge system protects the application from bot traffic by requiring users from bot IP addresses to complete an hCaptcha verification. Once verified, a secure cookie is set that allows access for a limited time period.
+The challenge system protects the application from automated bot traffic while minimizing disruption for real users. Users connecting from IP addresses flagged as bots are required to complete an hCaptcha verification. Once verified, a secure cookie is set that allows access for a limited time period.
+
+The system has two components: [anonymous activity tracking (AID)](https://github.com/Waiviogit/waivio/blob/master/docs/analytics-aid-active-users.md) and bot protection.
+- Anonymous activity tracking: when a page loads, a small script makes sure the visitor has an [anonymous ID](https://github.com/Waiviogit/waivio/blob/master/docs/analytics-aid-active-users.md) (`aid`) stored in a cookie and in the browser. The script periodically sends a short "ping" while the tab is visible so the server can count real active users.
+
+- Bot protection: Nginx checks request IPs against known bot lists. If an IP looks like a bot and is not whitelisted, the user is sent to an hCaptcha challenge. Passing it sets a cookie and adds the IP to a whitelist so browsing continues normally.
+
+For most users, all of this is invisible unless their IP is flagged and they must complete the one-time captcha.
 
 ## Architecture
 
