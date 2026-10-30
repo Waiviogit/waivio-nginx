@@ -156,6 +156,17 @@ describe('parseIpEntries', () => {
     expect(softV4[0].prefix).toBe(24);
     expect(softV4[0].addr.toString()).toBe('192.168.1.0');
   });
+
+  test('should split a comma-separated ipv6 and ipv4 pair', () => {
+    const { softV4, softV6 } = parseIpEntries(['2001:db8::1,10.0.0.1']);
+
+    expect(softV6).toHaveLength(1);
+    expect(softV6[0].prefix).toBe(128);
+    expect(softV6[0].addr.toString()).toBe('2001:db8::1');
+    expect(softV4).toHaveLength(1);
+    expect(softV4[0].prefix).toBe(32);
+    expect(softV4[0].addr.toString()).toBe('10.0.0.1');
+  });
 });
 
 describe('promoteSoftV4', () => {
@@ -207,6 +218,118 @@ describe('normalizeRanges', () => {
     expect(result).toHaveLength(1);
     expect(result[0].prefix).toBe(24);
   });
+
+  test('should keep the broader range when the narrower one is listed first', () => {
+    const entries = [
+      { addr: ipaddr.parse('192.168.1.1'), prefix: 32 },
+      { addr: ipaddr.parse('192.168.1.0'), prefix: 24 },
+    ];
+
+    const result = normalizeRanges(entries);
+    expect(result).toHaveLength(1);
+    expect(result[0].prefix).toBe(24);
+  });
+
+  test('should keep neighboring /24 networks', () => {
+    const entries = [
+      { addr: ipaddr.parse('192.168.1.0'), prefix: 24 },
+      { addr: ipaddr.parse('192.168.2.0'), prefix: 24 },
+    ];
+
+    expect(normalizeRanges(entries)).toHaveLength(2);
+  });
+
+  test('should not treat ipv4 and ipv6 with the same leading bytes as one network', () => {
+    const v6 = ipaddr.fromByteArray([1, 2, 3, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const result = normalizeRanges([
+      { addr: ipaddr.parse('1.2.3.4'), prefix: 32 },
+      { addr: v6, prefix: 32 },
+    ]);
+
+    expect(result).toHaveLength(2);
+  });
+
+  test('should cover a /24 by a /8 that still has host bits set', () => {
+    const [broad, broadPrefix] = ipaddr.parseCIDR('10.1.2.3/8');
+    const [narrow, narrowPrefix] = ipaddr.parseCIDR('10.200.0.0/24');
+
+    const result = normalizeRanges([
+      { addr: narrow, prefix: narrowPrefix },
+      { addr: broad, prefix: broadPrefix },
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].prefix).toBe(8);
+    expect(result[0].addr.toString()).toBe(broad.toString());
+  });
+
+  test('should match the previous quadratic implementation', () => {
+    const legacy = (entries) => {
+      if (!entries.length) return [];
+
+      const sorted = entries
+        .map((e) => ({ addr: e.addr, prefix: e.prefix }))
+        .sort((a, b) => {
+          if (a.prefix !== b.prefix) return a.prefix - b.prefix;
+          return a.addr.toString().localeCompare(b.addr.toString());
+        });
+
+      const result = [];
+      sorted.forEach((entry) => {
+        const covered = result.some(
+          (existing) => entry.addr.kind() === existing.addr.kind()
+            && entry.prefix >= existing.prefix
+            && entry.addr.match([existing.addr, existing.prefix]),
+        );
+        if (!covered) result.push(entry);
+      });
+      return result;
+    };
+
+    const signature = (ranges) => ranges
+      .map((entry) => `${entry.addr.kind()}/${entry.addr.toString()}/${entry.prefix}`)
+      .sort()
+      .join('\n');
+
+    let seed = 123456789;
+    const rand = () => {
+      seed = (seed * 1664525 + 1013904223) % 4294967296;
+      return seed;
+    };
+    const entries = [];
+    const v4Prefixes = [8, 12, 16, 24, 32];
+    for (let i = 0; i < 1500; i += 1) {
+      const prefix = v4Prefixes[rand() % v4Prefixes.length];
+      const ip = `${rand() % 256}.${rand() % 256}.${rand() % 256}.${rand() % 256}/${prefix}`;
+      const [addr, parsedPrefix] = ipaddr.parseCIDR(ip);
+      entries.push({ addr, prefix: parsedPrefix });
+    }
+    const v6Prefixes = [32, 48, 64, 128];
+    for (let i = 0; i < 500; i += 1) {
+      const groups = [];
+      for (let g = 0; g < 8; g += 1) groups.push((rand() % 65536).toString(16));
+      const prefix = v6Prefixes[rand() % v6Prefixes.length];
+      const [addr, parsedPrefix] = ipaddr.parseCIDR(`${groups.join(':')}/${prefix}`);
+      entries.push({ addr, prefix: parsedPrefix });
+    }
+
+    expect(signature(normalizeRanges(entries))).toBe(signature(legacy(entries)));
+  }, 20000);
+
+  test('should normalize 200k distinct /24 networks in under two seconds', () => {
+    const entries = [];
+    for (let i = 0; i < 200000; i += 1) {
+      const a = Math.floor(i / 65536) % 256;
+      const b = Math.floor(i / 256) % 256;
+      const c = i % 256;
+      entries.push({ addr: ipaddr.parse(`${a}.${b}.${c}.0`), prefix: 24 });
+    }
+
+    const started = Date.now();
+    const result = normalizeRanges(entries);
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(result).toHaveLength(200000);
+  }, 20000);
 });
 
 describe('renderRange', () => {

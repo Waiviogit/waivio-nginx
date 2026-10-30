@@ -1,13 +1,10 @@
-FROM alpine:3.14.2
+FROM node:24.22.1-alpine3.24
 
-# Install necessary packages
-RUN apk update && \
-    apk add --update nodejs npm nginx supervisor
-
-# Install certbot
-RUN apk add python3 python3-dev py3-pip build-base libressl-dev musl-dev libffi-dev rust cargo
-RUN pip3 install pip --upgrade
-RUN pip3 install certbot-nginx
+# Node 24.22.1 is the base image. Alpine 3.14's nodejs package is 14.x and
+# cannot run this binary. Certbot comes from apk: pip on Alpine 3.24 is
+# externally managed, and the old rust build does not apply.
+RUN apk add --no-cache nginx supervisor certbot certbot-nginx \
+ && node -v | grep -qx 'v24.22.1'
 
 # Copy the main Nginx configuration
 COPY ./nginx/staging/nginx.conf /etc/nginx/nginx.conf
@@ -33,8 +30,10 @@ COPY package.json ./
 RUN npm install
 COPY . .
 
-# Configure supervisord
+# Configure supervisord.
+# Alpine 3.24's default config includes /etc/supervisor.d/*.ini, not conf.d.
+# This file is a full config, so point supervisord at it directly.
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Start supervisord which will manage both Nginx and Node.js
-CMD ["supervisord", "-n"]
+CMD ["supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

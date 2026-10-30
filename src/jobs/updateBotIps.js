@@ -158,10 +158,7 @@ const parseIpEntries = (entries) => {
   const softV4 = [];
   const softV6 = [];
 
-  entries.forEach((raw) => {
-    const value = raw && raw.trim();
-    if (!value) return;
-
+  const pushEntry = (value) => {
     try {
       let addr;
       let prefix;
@@ -191,6 +188,17 @@ const parseIpEntries = (entries) => {
     } catch (e) {
       console.error(`Invalid IP/CIDR entry "${value}": ${e.message}`);
     }
+  };
+
+  entries.forEach((raw) => {
+    const value = raw && raw.trim();
+    if (!value) return;
+
+    // Redis sometimes stores X-Forwarded-For as one member: "ipv6,ipv4".
+    value.split(',').forEach((part) => {
+      const token = part.trim();
+      if (token) pushEntry(token);
+    });
   });
 
   return { softV4, softV6 };
@@ -528,6 +536,30 @@ const promoteV6To32 = (entries) => {
   return [...resultV6, ...others];
 };
 
+// Network key with host bits cleared. parseCIDR('10.1.2.3/8') keeps those bits,
+// but match() ignores them, so the key has to be the masked network.
+const maskedKey = (kind, bytes, prefix) => {
+  const len = bytes.length;
+  const fullBytes = Math.floor(prefix / 8);
+  const rem = prefix % 8;
+  const out = [];
+
+  for (let i = 0; i < fullBytes; i += 1) {
+    out.push(bytes[i]);
+  }
+
+  if (rem !== 0) {
+    const factor = 2 ** (8 - rem);
+    out.push(Math.floor(bytes[fullBytes] / factor) * factor);
+  }
+
+  while (out.length < len) {
+    out.push(0);
+  }
+
+  return `${kind}/${out.join('.')}/${prefix}`;
+};
+
 const normalizeRanges = (entries) => {
   if (!entries.length) return [];
 
@@ -535,24 +567,33 @@ const normalizeRanges = (entries) => {
     .map((e) => ({
       addr: e.addr,
       prefix: e.prefix,
+      kind: e.addr.kind(),
+      bytes: e.addr.toByteArray(),
+      sortKey: e.addr.toString(),
     }))
     .sort((a, b) => {
       if (a.prefix !== b.prefix) return a.prefix - b.prefix;
-      return a.addr.toString().localeCompare(b.addr.toString());
+      return a.sortKey.localeCompare(b.sortKey);
     });
 
+  const kept = new Set();
+  const prefixesByKind = { ipv4: [], ipv6: [] };
   const result = [];
 
   sorted.forEach((entry) => {
-    const covered = result.some(
-      (existing) => entry.addr.kind() === existing.addr.kind()
-        && entry.prefix >= existing.prefix
-        && entry.addr.match([existing.addr, existing.prefix]),
+    const seen = prefixesByKind[entry.kind];
+    const covered = seen.some(
+      (prefix) => prefix <= entry.prefix
+        && kept.has(maskedKey(entry.kind, entry.bytes, prefix)),
     );
 
-    if (!covered) {
-      result.push(entry);
+    if (covered) return;
+
+    kept.add(maskedKey(entry.kind, entry.bytes, entry.prefix));
+    if (seen[seen.length - 1] !== entry.prefix) {
+      seen.push(entry.prefix);
     }
+    result.push({ addr: entry.addr, prefix: entry.prefix });
   });
 
   return result;
@@ -597,7 +638,16 @@ const processIpEntries = (ipEntries) => {
   return finalRanges;
 };
 
+let botIpsUpdateRunning = false;
+
 const updateBotIpsMap = async () => {
+  if (botIpsUpdateRunning) {
+    console.log('Bot IP update already running, skipping');
+    return;
+  }
+
+  botIpsUpdateRunning = true;
+
   try {
     let client;
     try {
@@ -747,6 +797,8 @@ const updateBotIpsMap = async () => {
     }
   } catch (error) {
     console.error('Error updating bot IPs map:', error.message);
+  } finally {
+    botIpsUpdateRunning = false;
   }
 };
 
@@ -765,5 +817,5 @@ exports.updateBotIpsJob = new CronJob(
   false,
   null,
   null,
-  true,
+  false,
 );

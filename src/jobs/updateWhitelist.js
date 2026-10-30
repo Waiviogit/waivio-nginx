@@ -14,7 +14,16 @@ const REDIS_WHITELIST_KEY = process.env.REDIS_WHITELIST_KEY || 'captcha_whitelis
 const UPDATE_INTERVAL = process.env.WHITELIST_UPDATE_INTERVAL || '0 3 * * *';
 const WHITELIST_MAP_MAX_LINES = parseInt(process.env.WHITELIST_MAP_MAX_LINES, 10) || 200000;
 
+let whitelistUpdateRunning = false;
+
 const updateWhitelistMap = async () => {
+  if (whitelistUpdateRunning) {
+    console.log('Whitelist update already running, skipping');
+    return;
+  }
+
+  whitelistUpdateRunning = true;
+
   try {
     const client = await getRedisClient();
 
@@ -120,6 +129,8 @@ const updateWhitelistMap = async () => {
     }
   } catch (error) {
     console.error('Error updating whitelist map:', error.message);
+  } finally {
+    whitelistUpdateRunning = false;
   }
 };
 
@@ -130,5 +141,5 @@ exports.updateWhitelistJob = new CronJob(
   false,
   null,
   null,
-  true,
+  false,
 );
